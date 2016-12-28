@@ -21,7 +21,6 @@ import com.vaadin.ui.themes.ValoTheme;
 import tk.eabin.events.db.dao.User;
 import tk.eabin.events.event.PostViewChangeEvent;
 import tk.eabin.events.event.ProfileUpdatedEvent;
-import tk.eabin.events.event.UIEventBus;
 import tk.eabin.events.event.UserLoggedOutEvent;
 
 /**
@@ -46,7 +45,7 @@ public final class EventingerMenu extends CustomComponent {
 
         // There's only one DashboardMenu per UI so this doesn't need to be
         // unregistered from the UI-scoped DashboardEventBus.
-        UIEventBus.INSTANCE.registerWithEventBus(this);
+        MainUI.Companion.getEventBus().register(this);
 
         setCompositionRoot(buildContent());
     }
@@ -105,7 +104,7 @@ public final class EventingerMenu extends CustomComponent {
         settingsItem.addItem("Sign Out", new Command() {
             @Override
             public void menuSelected(final MenuItem selectedItem) {
-                UIEventBus.INSTANCE.postEvent(new UserLoggedOutEvent());
+                MainUI.Companion.getEventBus().post(new UserLoggedOutEvent());
             }
         });
         return settings;
@@ -196,7 +195,7 @@ public final class EventingerMenu extends CustomComponent {
 //            setIcon(view.getIcon());
             setCaption(view.getViewName().substring(0, 1).toUpperCase()
                     + view.getViewName().substring(1));
-            UIEventBus.INSTANCE.registerWithEventBus(this);
+            MainUI.Companion.getEventBus().register(this);
             addClickListener(new ClickListener() {
                 @Override
                 public void buttonClick(final ClickEvent event) {

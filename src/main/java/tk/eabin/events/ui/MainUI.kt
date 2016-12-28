@@ -1,5 +1,6 @@
 package tk.eabin.events.ui
 
+import com.google.common.eventbus.EventBus
 import com.vaadin.annotations.Push
 import com.vaadin.annotations.Theme
 import com.vaadin.annotations.Title
@@ -11,7 +12,6 @@ import com.vaadin.ui.themes.ValoTheme
 import org.jetbrains.exposed.sql.transactions.transaction
 import tk.eabin.events.db.dao.User
 import tk.eabin.events.db.schema.Users
-import tk.eabin.events.ui.views.EventsView
 import tk.eabin.events.ui.views.LoginView
 import tk.eabin.events.ui.views.MainView
 
@@ -28,7 +28,14 @@ import tk.eabin.events.ui.views.MainView
 @Push
 open class MainUI : UI() {
     private var currentUser: User? = null
+    private val bus = EventBus()
 
+    companion object {
+        val eventBus: EventBus
+            get() {
+                return (getCurrent() as MainUI).bus
+            }
+    }
 
     override fun detach() {
         super.detach()
@@ -64,7 +71,8 @@ open class MainUI : UI() {
             content = loginForm
             addStyleName("loginview")
         } else {
-            content = EventsView(currentUser!!)
+            content = MainView()
+            navigator.navigateTo(navigator.state)
         }
     }
 
