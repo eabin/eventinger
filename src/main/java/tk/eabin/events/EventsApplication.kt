@@ -4,11 +4,15 @@ import com.vaadin.server.SessionInitEvent
 import com.vaadin.server.SessionInitListener
 import com.vaadin.spring.server.SpringVaadinServlet
 import org.jetbrains.exposed.sql.Database
+import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.SpringApplication
 import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.web.servlet.ServletRegistrationBean
 import org.springframework.context.annotation.Bean
+import tk.eabin.events.db.dummy.createDummyData
 import tk.eabin.events.ui.MyBootstrapListener
+import javax.sql.DataSource
 
 /**
  * Created by IntelliJ IDEA.
@@ -18,8 +22,21 @@ import tk.eabin.events.ui.MyBootstrapListener
  */
 @SpringBootApplication
 open class EventsApplication {
+    @Value("\${db.createDummy}")
+    var createDummy = false
+
+
+    @Autowired
+    var dataSource: DataSource? = null
+
     @Bean(name = arrayOf("springBootServletRegistrationBean"))
     open fun servletRegistrationBean(): ServletRegistrationBean {
+        // todo: could make use of spring data source
+        Database.connect(dataSource ?: throw IllegalStateException("No datasource configured in application.properties"))
+        if (createDummy) {
+            createDummyData()
+        }
+
         val servlet = object : SpringVaadinServlet() {
 
 
@@ -42,11 +59,5 @@ open class EventsApplication {
 }
 
 fun main(args: Array<String>) {
-    Database.connect(
-            url = "jdbc:h2:tcp://localhost/eventinger",
-            driver = "org.h2.Driver",
-            user = "sa", password = ""
-
-    )
     SpringApplication.run(EventsApplication::class.java, *args)
 }

@@ -21,6 +21,7 @@ class Event(id: EntityID<Int>) : IntEntity(id) {
     var maxPeople by Events.maxPeople
     var comment by Events.comment
     var category by EventCategory referencedOn Events.categoryId
+    var location by EventLocation referencedOn Events.locationId
     val eventUsers by EventUser referrersOn EventUsers.event
     val participations by Participation referrersOn Participations.eventId
 }

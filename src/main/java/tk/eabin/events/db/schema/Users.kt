@@ -10,6 +10,6 @@ import org.jetbrains.exposed.dao.IntIdTable
  */
 object Users : IntIdTable("SYSTEMUSER") {
     val login = varchar("LOGIN", 255)
-    val password = varchar("PASSWORD", 255)
+    val password = varchar("PASSWORD", 255).nullable()
 
 }

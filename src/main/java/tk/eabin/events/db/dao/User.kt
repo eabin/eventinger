@@ -15,29 +15,32 @@ import java.security.NoSuchAlgorithmException
  * Time: 20:01
  */
 class User(id: EntityID<Int>) : IntEntity(id) {
-    companion object : IntEntityClass<User>(Users)
+    companion object : IntEntityClass<User>(Users) {
+        fun cryptPassword(id: Int, str: String): String {
+            return md5(id.toString() + str)
+        }
+
+        fun md5(str: String): String {
+            try {
+                val md5 = MessageDigest.getInstance("MD5")
+                val digest = md5.digest(str.toByteArray())
+                val d2 = ByteArray(digest.size + 1)
+                //avoid negative numbers!
+                d2[0] = 0
+                System.arraycopy(digest, 0, d2, 1, digest.size)
+                val hInt = BigInteger(d2)
+                return hInt.toString(16)
+            } catch (e: NoSuchAlgorithmException) {
+                e.printStackTrace()
+                return str
+            }
+        }
+
+    }
 
     var login by Users.login
     var password by Users.password
 
 
-    fun md5(str: String): String {
-        try {
-            val md5 = MessageDigest.getInstance("MD5")
-            val digest = md5.digest(str.toByteArray())
-            val d2 = ByteArray(digest.size + 1)
-            //avoid negative numbers!
-            d2[0] = 0
-            System.arraycopy(digest, 0, d2, 1, digest.size)
-            val hInt = BigInteger(d2)
-            return hInt.toString(16)
-        } catch (e: NoSuchAlgorithmException) {
-            e.printStackTrace()
-            return str
-        }
-    }
 
-    fun cryptPassword(str: String): String {
-        return md5(id.toString() + str)
-    }
 }

@@ -53,7 +53,7 @@ open class MainUI : UI() {
                     val user = User.find { Users.login.eq(username) }
                     if (!user.empty()) {
                         val wannabe = user.first()
-                        if (wannabe.cryptPassword(password) == wannabe.password) {
+                        if (User.cryptPassword(wannabe.id.value, password) == wannabe.password) {
                             currentUser = wannabe
                             session.setAttribute(User::class.java, currentUser)
                             removeStyleName("loginview")
