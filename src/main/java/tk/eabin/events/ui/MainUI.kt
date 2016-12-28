@@ -11,10 +11,9 @@ import com.vaadin.ui.themes.ValoTheme
 import org.jetbrains.exposed.sql.transactions.transaction
 import tk.eabin.events.db.dao.User
 import tk.eabin.events.db.schema.Users
-import tk.eabin.events.event.registerWithEventBus
-import tk.eabin.events.event.unregisterFromEventBus
 import tk.eabin.events.ui.views.EventsView
 import tk.eabin.events.ui.views.LoginView
+import tk.eabin.events.ui.views.MainView
 
 
 /**
@@ -34,13 +33,11 @@ open class MainUI : UI() {
     override fun detach() {
         super.detach()
         println("Cleaning up...")
-        unregisterFromEventBus(this)
     }
 
     override fun init(request: VaadinRequest) {
         Responsive.makeResponsive(this)
         addStyleName(ValoTheme.UI_WITH_MENU);
-        registerWithEventBus(this)
 
         currentUser = session.getAttribute(User::class.java)
         if (currentUser == null) {
@@ -57,7 +54,8 @@ open class MainUI : UI() {
                             currentUser = wannabe
                             session.setAttribute(User::class.java, currentUser)
                             removeStyleName("loginview")
-                            content = EventsView(wannabe)
+                            content = MainView()
+                            navigator.navigateTo(navigator.state)
                         }
                     }
 

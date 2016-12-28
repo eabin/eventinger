@@ -1,5 +1,8 @@
 package tk.eabin.events.ui.views
 
+import com.vaadin.navigator.View
+import com.vaadin.navigator.ViewChangeListener
+import com.vaadin.server.VaadinSession
 import com.vaadin.shared.ui.MarginInfo
 import com.vaadin.ui.*
 import org.jetbrains.exposed.sql.and
@@ -19,9 +22,15 @@ import java.time.ZoneOffset
  * Time: 00:38
  */
 
-class EventsView(val currentUser: User) : VerticalLayout() {
+class EventsView() : VerticalLayout(), View {
+    private val currentUser: User
+        get() {
+            return VaadinSession.getCurrent().getAttribute(User::class.java)
+        }
 
-    init {
+
+    override fun enter(p0: ViewChangeListener.ViewChangeEvent?) {
+        println("Entering events view...")
         generateAll()
     }
 
