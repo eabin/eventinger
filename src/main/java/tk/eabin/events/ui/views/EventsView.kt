@@ -1,19 +1,29 @@
 package tk.eabin.events.ui.views
 
+import com.google.common.eventbus.Subscribe
 import com.vaadin.navigator.View
 import com.vaadin.navigator.ViewChangeListener
-import com.vaadin.server.VaadinSession
+import com.vaadin.server.Responsive
 import com.vaadin.shared.ui.MarginInfo
 import com.vaadin.ui.*
+import com.vaadin.ui.themes.ValoTheme
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import tk.eabin.events.db.dao.Event
 import tk.eabin.events.db.dao.Participation
-import tk.eabin.events.db.dao.User
+import tk.eabin.events.db.schema.EventGroupMaps
 import tk.eabin.events.db.schema.Events
 import tk.eabin.events.db.schema.Participations
+import tk.eabin.events.event.AppEventBus
+import tk.eabin.events.event.EventChangedEvent
+import tk.eabin.events.event.EventCreatedEvent
+import tk.eabin.events.event.ParticipationChangedEvent
+import tk.eabin.events.ui.MainUI.Companion.currentUser
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import java.util.*
+
 
 /**
  * Created by IntelliJ IDEA.
@@ -23,29 +33,97 @@ import java.time.ZoneOffset
  */
 
 class EventsView() : VerticalLayout(), View {
-    private val currentUser: User
-        get() {
-            return VaadinSession.getCurrent().getAttribute(User::class.java)
-        }
+    override fun attach() {
+        AppEventBus.registerWithEventBus(this)
+    }
 
+    override fun detach() {
+        AppEventBus.unregisterFromEventBus(this)
+    }
 
     override fun enter(p0: ViewChangeListener.ViewChangeEvent?) {
         println("Entering events view...")
         generateAll()
     }
 
-    private fun generateAll() {
-        transaction {
-            removeAllComponents()
-            defaultComponentAlignment = Alignment.MIDDLE_CENTER
-            margin = MarginInfo(true)
-            for (event in Event.find { Events.deleted.eq(false).and(Events.archived.eq(false)) }.sortedBy { it.startDate }) {
-                val box = generateEventBox(event)
-                addComponent(box)
+    private fun generateHeader(): Component {
+        val header = HorizontalLayout()
+        header.addStyleName("viewheader")
+        header.isSpacing = true
+        Responsive.makeResponsive(header)
+
+        val titleLabel = Label("Events")
+        titleLabel.setSizeUndefined()
+        titleLabel.addStyleName(ValoTheme.LABEL_H1)
+        titleLabel.addStyleName(ValoTheme.LABEL_NO_MARGIN)
+        header.addComponents(titleLabel, generateToolbar())
+
+        return header
+    }
+
+    private fun saveEvent(eventWindow: EditEventWindow) {
+        val event =
+                if (eventWindow.event == null) {
+                    transaction {
+                        Event.new {
+                            eventWindow.updateEvent(this)
+                        }
+                    }
+                } else {
+                    transaction {
+                        eventWindow.updateEvent(eventWindow.event)
+                    }
+                    eventWindow.event
+                }
+        AppEventBus.postEvent(EventChangedEvent(event.id.value))
+    }
+
+    private fun generateToolbar(): Component {
+        val toolbar = HorizontalLayout().apply {
+            addStyleName("toolbar")
+            isSpacing = true
+
+            val btnCreate = Button("New Event").apply {
+                addStyleName(ValoTheme.BUTTON_PRIMARY)
+                addClickListener {
+                    ui.addWindow(EditEventWindow(null, "New Event", { saveEvent(it) }))
+                }
             }
-            setSizeUndefined()
-            setWidth("100%")
-            defaultComponentAlignment = Alignment.MIDDLE_CENTER
+
+            val group = CssLayout(btnCreate)
+            group.addStyleName(ValoTheme.LAYOUT_COMPONENT_GROUP)
+            addComponent(group)
+        }
+
+        return toolbar
+    }
+
+    private fun generateAll() {
+        ui.access {
+            transaction {
+                removeAllComponents()
+                val header = generateHeader()
+                addComponent(header)
+                defaultComponentAlignment = Alignment.MIDDLE_CENTER
+                margin = MarginInfo(true)
+
+                println("Updating events list for user: ${currentUser.login}")
+                val userGroupIds = currentUser.groups.map { it.id }
+
+                // todo: this is an ugly version of filtering and sorting; better would be to do a select where exists to find
+                // out about group relations - or find a mechanism that exposed already provides
+                val events = (Events innerJoin EventGroupMaps).select {
+                    Events.deleted.eq(false).and(Events.archived.eq(false)).and(EventGroupMaps.group.inList(userGroupIds))
+                }.orderBy(Events.startDate, isAsc = true)
+
+                for (event in Event.wrapRows(events).toSortedSet(Comparator { a, b -> a.startDate.compareTo(b.startDate) })) {
+                    val box = generateEventBox(event)
+                    addComponent(box)
+                }
+                setSizeUndefined()
+                setWidth("100%")
+                defaultComponentAlignment = Alignment.MIDDLE_CENTER
+            }
         }
     }
 
@@ -67,7 +145,7 @@ class EventsView() : VerticalLayout(), View {
                 participation.first().doesParticipate = i
             }
         }
-        generateAll()
+        AppEventBus.postEvent(ParticipationChangedEvent(modifiedEvent.id.value))
     }
 
     private fun generateEventBox(event: Event): Component {
@@ -91,8 +169,18 @@ class EventsView() : VerticalLayout(), View {
 
         ret.content = content
 //        ret.setWidthUndefined()
-        ret.setWidth("80%")
+        ret.setWidth("90%")
+
         return ret
     }
 
+
+    @Subscribe
+    fun onParticipationChanged(e: ParticipationChangedEvent) = generateAll()
+
+    @Subscribe
+    fun onEventChanged(e: EventChangedEvent) = generateAll()
+
+    @Subscribe
+    fun onEventCreated(e: EventCreatedEvent) = generateAll()
 }

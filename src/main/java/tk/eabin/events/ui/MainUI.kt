@@ -6,6 +6,7 @@ import com.vaadin.annotations.Theme
 import com.vaadin.annotations.Title
 import com.vaadin.server.Responsive
 import com.vaadin.server.VaadinRequest
+import com.vaadin.server.VaadinSession
 import com.vaadin.spring.annotation.SpringUI
 import com.vaadin.ui.UI
 import com.vaadin.ui.themes.ValoTheme
@@ -34,6 +35,11 @@ open class MainUI : UI() {
         val eventBus: EventBus
             get() {
                 return (getCurrent() as MainUI).bus
+            }
+
+        val currentUser: User
+            get() {
+                return VaadinSession.getCurrent().getAttribute(User::class.java)
             }
     }
 

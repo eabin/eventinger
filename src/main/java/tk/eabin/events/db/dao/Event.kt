@@ -3,6 +3,7 @@ package tk.eabin.events.db.dao
 import org.jetbrains.exposed.dao.EntityID
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
+import tk.eabin.events.db.schema.EventGroupMaps
 import tk.eabin.events.db.schema.EventUsers
 import tk.eabin.events.db.schema.Events
 import tk.eabin.events.db.schema.Participations
@@ -24,4 +25,5 @@ class Event(id: EntityID<Int>) : IntEntity(id) {
     var location by EventLocation referencedOn Events.locationId
     val eventUsers by EventUser referrersOn EventUsers.event
     val participations by Participation referrersOn Participations.eventId
+    val groups by UserGroup via EventGroupMaps
 }

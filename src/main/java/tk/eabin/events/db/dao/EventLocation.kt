@@ -4,6 +4,7 @@ import org.jetbrains.exposed.dao.EntityID
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
 import tk.eabin.events.db.schema.EventLocations
+import tk.eabin.events.db.schema.LocationGroupMaps
 
 /**
  * Created by IntelliJ IDEA.
@@ -16,4 +17,5 @@ class EventLocation(id: EntityID<Int>) : IntEntity(id) {
 
     var name by EventLocations.name
     var category by EventCategory referencedOn EventLocations.categoryId
+    var groups by UserGroup via LocationGroupMaps
 }

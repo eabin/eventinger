@@ -3,6 +3,7 @@ package tk.eabin.events.db.dao
 import org.jetbrains.exposed.dao.EntityID
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
+import tk.eabin.events.db.schema.UserGroupMaps
 import tk.eabin.events.db.schema.Users
 import java.math.BigInteger
 import java.security.MessageDigest
@@ -40,7 +41,7 @@ class User(id: EntityID<Int>) : IntEntity(id) {
 
     var login by Users.login
     var password by Users.password
-
+    var groups by UserGroup via UserGroupMaps
 
 
 }

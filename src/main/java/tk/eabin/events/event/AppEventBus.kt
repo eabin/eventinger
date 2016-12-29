@@ -8,6 +8,10 @@ import com.google.common.eventbus.EventBus
  * Date: 28.12.16
  * Time: 09:02
  */
+data class ParticipationChangedEvent(val eventId: Int)
+
+data class EventCreatedEvent(val eventId: Int)
+data class EventChangedEvent(val eventId: Int)
 
 private val bus = EventBus()
 
