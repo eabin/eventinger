@@ -192,7 +192,7 @@ public final class EventingerMenu extends CustomComponent {
         public ValoMenuItemButton(final EventingerViews view) {
             this.view = view;
             setPrimaryStyleName("valo-menu-item");
-//            setIcon(view.getIcon());
+            setIcon(view.getIcon());
             setCaption(view.getViewName().substring(0, 1).toUpperCase()
                     + view.getViewName().substring(1));
             MainUI.Companion.getEventBus().register(this);

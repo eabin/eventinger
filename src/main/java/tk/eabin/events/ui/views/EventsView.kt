@@ -3,8 +3,8 @@ package tk.eabin.events.ui.views
 import com.google.common.eventbus.Subscribe
 import com.vaadin.navigator.View
 import com.vaadin.navigator.ViewChangeListener
+import com.vaadin.server.FontAwesome
 import com.vaadin.server.Responsive
-import com.vaadin.shared.ui.MarginInfo
 import com.vaadin.ui.*
 import com.vaadin.ui.themes.ValoTheme
 import org.jetbrains.exposed.sql.and
@@ -12,6 +12,7 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import tk.eabin.events.db.dao.Event
 import tk.eabin.events.db.dao.Participation
+import tk.eabin.events.db.dao.ParticipationType
 import tk.eabin.events.db.schema.EventGroupMaps
 import tk.eabin.events.db.schema.Events
 import tk.eabin.events.db.schema.Participations
@@ -20,9 +21,10 @@ import tk.eabin.events.event.EventChangedEvent
 import tk.eabin.events.event.EventCreatedEvent
 import tk.eabin.events.event.ParticipationChangedEvent
 import tk.eabin.events.ui.MainUI.Companion.currentUser
-import java.time.LocalDateTime
-import java.time.ZoneOffset
 import java.util.*
+
+
+private val categoryIcons = hashMapOf("soccer" to FontAwesome.SOCCER_BALL_O)
 
 
 /**
@@ -104,8 +106,11 @@ class EventsView() : VerticalLayout(), View {
                 removeAllComponents()
                 val header = generateHeader()
                 addComponent(header)
+                addStyleName("dashboard")
                 defaultComponentAlignment = Alignment.MIDDLE_CENTER
-                margin = MarginInfo(true)
+                setMargin(true)
+                isSpacing = true
+                setSizeFull()
 
                 println("Updating events list for user: ${currentUser.login}")
                 val userGroupIds = currentUser.groups.map { it.id }
@@ -120,14 +125,12 @@ class EventsView() : VerticalLayout(), View {
                     val box = generateEventBox(event)
                     addComponent(box)
                 }
-                setSizeUndefined()
-                setWidth("100%")
                 defaultComponentAlignment = Alignment.MIDDLE_CENTER
             }
         }
     }
 
-    private fun updateParticipation(modifiedEvent: Event, i: Int) {
+    private fun updateParticipation(modifiedEvent: Event, i: ParticipationType) {
         transaction {
             println("Setting participation for event ${modifiedEvent.comment} to $i")
             val participation = Participation.find {
@@ -139,39 +142,112 @@ class EventsView() : VerticalLayout(), View {
                 Participation.new {
                     event = modifiedEvent
                     user = currentUser
-                    doesParticipate = i
+                    doesParticipate = i.value
                 }
             } else {
-                participation.first().doesParticipate = i
+                participation.first().doesParticipate = i.value
             }
         }
         AppEventBus.postEvent(ParticipationChangedEvent(modifiedEvent.id.value))
     }
 
+    private fun createContentWrapper(content: Component): Component {
+        val slot = CssLayout()
+        slot.setWidth("100%")
+
+        val card = CssLayout()
+        card.setWidth("100%")
+        card.addStyleName(ValoTheme.LAYOUT_CARD)
+
+        val toolbar = HorizontalLayout()
+        toolbar.addStyleName("dashboard-panel-toolbar")
+        toolbar.setWidth("100%")
+        toolbar.isSpacing = true
+
+        val caption = Label(content.caption)
+        caption.addStyleName(ValoTheme.LABEL_H4)
+        caption.addStyleName(ValoTheme.LABEL_COLORED)
+        caption.addStyleName(ValoTheme.LABEL_NO_MARGIN)
+        content.caption = null
+
+        val tools = MenuBar()
+        tools.addStyleName(ValoTheme.MENUBAR_BORDERLESS)
+        val max = tools.addItem("", FontAwesome.EXPAND, MenuBar.Command {
+
+            fun menuSelected(selectedItem: MenuBar.MenuItem) {
+                if (!slot.styleName.contains("max")) {
+                    selectedItem.setIcon(FontAwesome.COMPRESS)
+//                    toggleMaximized(slot, true)
+                } else {
+                    slot.removeStyleName("max")
+                    selectedItem.setIcon(FontAwesome.EXPAND)
+//                    toggleMaximized(slot, false)
+                }
+            }
+        })
+        max.styleName = "icon-only"
+        val root = tools.addItem("", FontAwesome.COG, null)
+        root.addItem("Configure", MenuBar.Command {
+            fun menuSelected(selectedItem: MenuBar.MenuItem) {
+                Notification.show("Not implemented in this demo")
+            }
+        })
+        root.addSeparator()
+        root.addItem("Close", {
+            fun menuSelected(selectedItem: MenuBar.MenuItem) {
+                Notification.show("Not implemented in this demo")
+            }
+        })
+
+        toolbar.addComponents(caption, tools)
+        toolbar.setExpandRatio(caption, 1f)
+        toolbar.setComponentAlignment(caption, Alignment.MIDDLE_LEFT)
+
+        card.addComponents(toolbar, content)
+        slot.addComponent(card)
+        return slot
+    }
+
     private fun generateEventBox(event: Event): Component {
-        val ret = Panel(event.category.name + "  -  " + LocalDateTime.ofEpochSecond(event.startDate.toLong(), 0, ZoneOffset.MIN))
         val content = VerticalLayout()
-        content.addComponent(Label(event.comment))
-        content.addComponent(Label(event.participations.joinToString(", ") { it.user.login + "[${it.doesParticipate}]" }))
-        val buttons = HorizontalLayout().apply {
-            addComponent(Button("Teilnehmen").apply {
-                addClickListener {
-                    updateParticipation(event, 1)
-                }
-            })
-            addComponent(Button("Nicht Teilnehmen").apply {
-                addClickListener {
-                    updateParticipation(event, 0)
-                }
-            })
+        content.caption = event.category.name
+        content.setMargin(true)
+        content.isSpacing = true
+        content.setSizeFull()
+
+        val comment = Label(event.comment)
+        comment.caption = "Comment"
+        comment.icon = FontAwesome.COMMENT
+        content.addComponent(comment)
+
+        val participations = HorizontalLayout()
+        participations.setSizeFull()
+        participations.addStyleName("event-participation")
+        Responsive.makeResponsive(participations)
+
+        for (p in ParticipationType.values()) {
+            val participants = event.participations.filter { it.doesParticipate == p.value }.joinToString(", ") { it.user.login }
+            val l = Label("[$participants]")
+            l.icon = p.icon
+            l.caption = p.name
+            l.setSizeUndefined()
+
+            participations.addComponent(l)
         }
+
+        val buttons = HorizontalLayout().apply {
+
+            for (p in ParticipationType.values()) {
+                addComponent(Button(p.icon).apply {
+                    addClickListener {
+                        updateParticipation(event, p)
+                    }
+                })
+            }
+        }
+        content.addComponent(participations)
         content.addComponent(buttons)
-
-        ret.content = content
-//        ret.setWidthUndefined()
-        ret.setWidth("90%")
-
-        return ret
+        return Panel(content)
     }
 
 

@@ -158,6 +158,20 @@
 
   }
 
+
+  .event-participation[width-range~="0-400px"] {
+        .v-slot {
+            width: 100%;
+            display: block;
+        }
+   }
+
+  .event-participation[width-range~="401px-"] {
+        .v-slot {
+            width: 33.3%;
+        }
+   }
+
   .dashboard-view {
     @include width-range($max: 480px) {
       padding-left: round($view-padding / 2);
