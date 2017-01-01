@@ -101,9 +101,11 @@ class EventsView() : VerticalLayout(), View {
     }
 
     private fun generateEvents(): Component {
-        val eventsBox = VerticalLayout().apply {
+        val eventsBox = CssLayout().apply {
             defaultComponentAlignment = Alignment.MIDDLE_CENTER
-            setMargin(true)
+            addStyleName("dashboard-panels")
+            setMargin(false)
+            setWidth("100%")
             isSpacing = true
 
 
@@ -122,15 +124,12 @@ class EventsView() : VerticalLayout(), View {
             defaultComponentAlignment = Alignment.MIDDLE_CENTER
         }
         return eventsBox
-//        return Panel(eventsBox).apply {
-//            this.addStyleName(ValoTheme.PANEL_BORDERLESS)
-//
-//        }
     }
 
     private fun generateAll() {
         ui.access {
             transaction {
+                addStyleName("dashboard-view")
                 removeAllComponents()
                 val header = generateHeader()
                 addComponent(header)
@@ -165,6 +164,7 @@ class EventsView() : VerticalLayout(), View {
     private fun createContentWrapper(content: Component): Component {
         val slot = CssLayout()
         slot.setWidth("100%")
+        slot.addStyleName("dashboard-panel-slot")
 
         val card = CssLayout()
         card.setWidth("100%")
@@ -173,7 +173,6 @@ class EventsView() : VerticalLayout(), View {
         val toolbar = HorizontalLayout()
         toolbar.addStyleName("dashboard-panel-toolbar")
         toolbar.setWidth("100%")
-        toolbar.isSpacing = true
 
         val caption = Label(content.caption)
         caption.addStyleName(ValoTheme.LABEL_H4)
@@ -258,7 +257,7 @@ class EventsView() : VerticalLayout(), View {
         }
         content.addComponent(participations)
         content.addComponent(buttons)
-        return Panel(content)
+        return createContentWrapper(content)
     }
 
 
