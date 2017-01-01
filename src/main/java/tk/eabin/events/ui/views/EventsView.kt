@@ -100,32 +100,43 @@ class EventsView() : VerticalLayout(), View {
         return toolbar
     }
 
+    private fun generateEvents(): Component {
+        val eventsBox = VerticalLayout().apply {
+            defaultComponentAlignment = Alignment.MIDDLE_CENTER
+            setMargin(true)
+            isSpacing = true
+
+
+            val userGroupIds = currentUser.groups.map { it.id }
+
+            // todo: this is an ugly version of filtering and sorting; better would be to do a select where exists to find
+            // out about group relations - or find a mechanism that exposed already provides
+            val events = (Events innerJoin EventGroupMaps).select {
+                Events.deleted.eq(false).and(Events.archived.eq(false)).and(EventGroupMaps.group.inList(userGroupIds))
+            }.orderBy(Events.startDate, isAsc = true)
+
+            for (event in Event.wrapRows(events).toSortedSet(Comparator { a, b -> a.startDate.compareTo(b.startDate) })) {
+                val box = generateEventBox(event)
+                addComponent(box)
+            }
+            defaultComponentAlignment = Alignment.MIDDLE_CENTER
+        }
+        return eventsBox
+//        return Panel(eventsBox).apply {
+//            this.addStyleName(ValoTheme.PANEL_BORDERLESS)
+//
+//        }
+    }
+
     private fun generateAll() {
         ui.access {
             transaction {
                 removeAllComponents()
                 val header = generateHeader()
                 addComponent(header)
-                addStyleName("dashboard")
-                defaultComponentAlignment = Alignment.MIDDLE_CENTER
-                setMargin(true)
-                isSpacing = true
-                setSizeFull()
-
-                println("Updating events list for user: ${currentUser.login}")
-                val userGroupIds = currentUser.groups.map { it.id }
-
-                // todo: this is an ugly version of filtering and sorting; better would be to do a select where exists to find
-                // out about group relations - or find a mechanism that exposed already provides
-                val events = (Events innerJoin EventGroupMaps).select {
-                    Events.deleted.eq(false).and(Events.archived.eq(false)).and(EventGroupMaps.group.inList(userGroupIds))
-                }.orderBy(Events.startDate, isAsc = true)
-
-                for (event in Event.wrapRows(events).toSortedSet(Comparator { a, b -> a.startDate.compareTo(b.startDate) })) {
-                    val box = generateEventBox(event)
-                    addComponent(box)
-                }
-                defaultComponentAlignment = Alignment.MIDDLE_CENTER
+                val events = generateEvents()
+                addComponent(events)
+                setExpandRatio(events, 1f)
             }
         }
     }
@@ -213,7 +224,7 @@ class EventsView() : VerticalLayout(), View {
         content.caption = event.category.name
         content.setMargin(true)
         content.isSpacing = true
-        content.setSizeFull()
+//        content.setSizeFull()
 
         val comment = Label(event.comment)
         comment.caption = "Comment"

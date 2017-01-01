@@ -1,7 +1,7 @@
 package tk.eabin.events.ui.views
 
-import com.vaadin.ui.CssLayout
 import com.vaadin.ui.HorizontalLayout
+import com.vaadin.ui.VerticalLayout
 import tk.eabin.events.ui.EventingerMenu
 import tk.eabin.events.ui.EventingerNavigator
 
@@ -15,14 +15,13 @@ import tk.eabin.events.ui.EventingerNavigator
 
 class MainView : HorizontalLayout() {
     init {
-        setSizeFull()
+        setWidth("100%")
         addStyleName("mainview")
 
         addComponent(EventingerMenu())
 
-        val content = CssLayout()
-        content.addStyleName("view-content")
-        content.setSizeFull()
+        val content = VerticalLayout()
+        content.setWidth("100%")
         addComponent(content)
         setExpandRatio(content, 1.0f)
 
