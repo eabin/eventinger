@@ -172,6 +172,20 @@
         }
    }
 
+  .event-buttons[width-range~="0-400px"] {
+        width: 100%;
+        .v-button {
+            width: 33.3%;
+        }
+   }
+
+  .event-buttons[width-range~="401px-"] {
+        width: 100%;
+          .v-button {
+            width: auto;
+        }
+   }
+
   .dashboard-view {
     @include width-range($max: 480px) {
       padding-left: round($view-padding / 2);

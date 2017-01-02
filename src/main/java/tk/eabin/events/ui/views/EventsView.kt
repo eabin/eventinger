@@ -1,6 +1,8 @@
 package tk.eabin.events.ui.views
 
 import com.google.common.eventbus.Subscribe
+import com.vaadin.data.Property
+import com.vaadin.data.util.ObjectProperty
 import com.vaadin.navigator.View
 import com.vaadin.navigator.ViewChangeListener
 import com.vaadin.server.FontAwesome
@@ -35,6 +37,21 @@ private val categoryIcons = hashMapOf("soccer" to FontAwesome.SOCCER_BALL_O)
  */
 
 class EventsView() : VerticalLayout(), View {
+    data class EventChanged(val onChanged: (event: Event) -> Unit)
+
+
+    val eventList by lazy {
+        generateEvents()
+    }
+
+    init {
+        addStyleName("dashboard-view")
+        val header = generateHeader()
+        addComponent(header)
+        addComponent(eventList)
+        setExpandRatio(eventList, 1f)
+    }
+
     override fun attach() {
         AppEventBus.registerWithEventBus(this)
     }
@@ -45,7 +62,7 @@ class EventsView() : VerticalLayout(), View {
 
     override fun enter(p0: ViewChangeListener.ViewChangeEvent?) {
         println("Entering events view...")
-        generateAll()
+        updateEvents()
     }
 
     private fun generateHeader(): Component {
@@ -100,7 +117,42 @@ class EventsView() : VerticalLayout(), View {
         return toolbar
     }
 
-    private fun generateEvents(): Component {
+    private val eventListeners = hashMapOf<Int, MutableSet<EventChanged>>()
+    private fun addListener(event: Event, listener: (event: Event) -> Unit) {
+        val set = eventListeners.getOrPut(event.id.value, { mutableSetOf() })
+        set += EventChanged(listener)
+    }
+
+    private fun updateEvents(vararg updatedEventIds: Int) {
+
+        ui?.access {
+            transaction {
+                val userGroupIds = currentUser.groups.map { it.id }
+                // todo: this is an ugly version of filtering and sorting; better would be to do a select where exists to find
+                // out about group relations - or find a mechanism that exposed already provides
+                val events = (Events innerJoin EventGroupMaps).select {
+                    Events.deleted.eq(false).and(Events.archived.eq(false)).and(EventGroupMaps.group.inList(userGroupIds))
+                }.orderBy(Events.startDate, isAsc = true)
+
+                for (event in Event.wrapRows(events).toSortedSet(Comparator { a, b -> a.startDate.compareTo(b.startDate) })) {
+                    val eventId = "event-${event.id.value}"
+                    val listeners = eventListeners[event.id.value]
+                    if (listeners == null || listeners.isEmpty()) {
+                        val box = generateEventBox(event)
+                        box.id = eventId
+                        eventList.addComponent(box) // todo: insert at correct position
+                        // retry-update, because the eventbox is an empty shell
+                        eventListeners[event.id.value]?.forEach { it.onChanged(event) }
+                    } else {
+                        listeners.forEach { it.onChanged(event) }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun generateEvents(): CssLayout {
+        println("Generating events layout...")
         val eventsBox = CssLayout().apply {
             defaultComponentAlignment = Alignment.MIDDLE_CENTER
             addStyleName("dashboard-panels")
@@ -109,35 +161,9 @@ class EventsView() : VerticalLayout(), View {
             isSpacing = true
 
 
-            val userGroupIds = currentUser.groups.map { it.id }
-
-            // todo: this is an ugly version of filtering and sorting; better would be to do a select where exists to find
-            // out about group relations - or find a mechanism that exposed already provides
-            val events = (Events innerJoin EventGroupMaps).select {
-                Events.deleted.eq(false).and(Events.archived.eq(false)).and(EventGroupMaps.group.inList(userGroupIds))
-            }.orderBy(Events.startDate, isAsc = true)
-
-            for (event in Event.wrapRows(events).toSortedSet(Comparator { a, b -> a.startDate.compareTo(b.startDate) })) {
-                val box = generateEventBox(event)
-                addComponent(box)
-            }
             defaultComponentAlignment = Alignment.MIDDLE_CENTER
         }
         return eventsBox
-    }
-
-    private fun generateAll() {
-        ui.access {
-            transaction {
-                addStyleName("dashboard-view")
-                removeAllComponents()
-                val header = generateHeader()
-                addComponent(header)
-                val events = generateEvents()
-                addComponent(events)
-                setExpandRatio(events, 1f)
-            }
-        }
     }
 
     private fun updateParticipation(modifiedEvent: Event, i: ParticipationType) {
@@ -161,7 +187,7 @@ class EventsView() : VerticalLayout(), View {
         AppEventBus.postEvent(ParticipationChangedEvent(modifiedEvent.id.value))
     }
 
-    private fun createContentWrapper(content: Component): Component {
+    private fun createContentWrapper(content: Component, captionProperty: Property<String>): Component {
         val slot = CssLayout()
         slot.setWidth("100%")
         slot.addStyleName("dashboard-panel-slot")
@@ -174,11 +200,10 @@ class EventsView() : VerticalLayout(), View {
         toolbar.addStyleName("dashboard-panel-toolbar")
         toolbar.setWidth("100%")
 
-        val caption = Label(content.caption)
+        val caption = Label(captionProperty)
         caption.addStyleName(ValoTheme.LABEL_H4)
         caption.addStyleName(ValoTheme.LABEL_COLORED)
         caption.addStyleName(ValoTheme.LABEL_NO_MARGIN)
-        content.caption = null
 
         val tools = MenuBar()
         tools.addStyleName(ValoTheme.MENUBAR_BORDERLESS)
@@ -220,15 +245,18 @@ class EventsView() : VerticalLayout(), View {
 
     private fun generateEventBox(event: Event): Component {
         val content = VerticalLayout()
-        content.caption = event.category.name
+        val captionProperty = ObjectProperty<String>("")
         content.setMargin(true)
         content.isSpacing = true
-//        content.setSizeFull()
 
-        val comment = Label(event.comment)
+        val comment = Label()
         comment.caption = "Comment"
         comment.icon = FontAwesome.COMMENT
         content.addComponent(comment)
+        addListener(event) {
+            captionProperty.value = event.category.name
+            comment.value = it.comment
+        }
 
         val participations = HorizontalLayout()
         participations.setSizeFull()
@@ -236,37 +264,52 @@ class EventsView() : VerticalLayout(), View {
         Responsive.makeResponsive(participations)
 
         for (p in ParticipationType.values()) {
-            val participants = event.participations.filter { it.doesParticipate == p.value }.joinToString(", ") { it.user.login }
-            val l = Label("[$participants]")
+            val l = Label()
             l.icon = p.icon
             l.caption = p.name
             l.setSizeUndefined()
 
+            addListener(event) {
+                val participants = it.participations.filter { it.doesParticipate == p.value }.joinToString(", ") { it.user.login }
+                val text = "[$participants]"
+                l.value = text
+            }
+
             participations.addComponent(l)
         }
 
-        val buttons = HorizontalLayout().apply {
+        val buttons = CssLayout().apply {
+            addStyleName("event-buttons")
 
             for (p in ParticipationType.values()) {
-                addComponent(Button(p.icon).apply {
+                addComponent(Button(p.name, p.icon).apply {
+                    addListener(event) {
+                        if (it.participations.any { it.user.id == currentUser.id && it.doesParticipate == p.value }) {
+                            addStyleName(ValoTheme.BUTTON_FRIENDLY)
+                        } else {
+                            removeStyleName(ValoTheme.BUTTON_FRIENDLY)
+                        }
+                    }
                     addClickListener {
                         updateParticipation(event, p)
                     }
                 })
             }
         }
+        Responsive.makeResponsive(buttons)
+
         content.addComponent(participations)
         content.addComponent(buttons)
-        return createContentWrapper(content)
+        return createContentWrapper(content, captionProperty)
     }
 
 
     @Subscribe
-    fun onParticipationChanged(e: ParticipationChangedEvent) = generateAll()
+    fun onParticipationChanged(e: ParticipationChangedEvent) = updateEvents(e.eventId)
 
     @Subscribe
-    fun onEventChanged(e: EventChangedEvent) = generateAll()
+    fun onEventChanged(e: EventChangedEvent) = updateEvents(e.eventId)
 
     @Subscribe
-    fun onEventCreated(e: EventCreatedEvent) = generateAll()
+    fun onEventCreated(e: EventCreatedEvent) = updateEvents()
 }
