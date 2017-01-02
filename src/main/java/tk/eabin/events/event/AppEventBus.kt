@@ -11,6 +11,7 @@ import com.google.common.eventbus.EventBus
 data class ParticipationChangedEvent(val eventId: Int)
 
 data class EventCreatedEvent(val eventId: Int)
+data class EventDeletedEvent(val eventId: Int)
 data class EventChangedEvent(val eventId: Int)
 
 private val bus = EventBus()

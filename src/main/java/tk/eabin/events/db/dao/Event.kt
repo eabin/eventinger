@@ -18,6 +18,8 @@ class Event(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<Event>(Events)
 
     var creator by User referencedOn Events.creatorId
+    var deleted by Events.deleted
+    var archived by Events.archived
     var startDate by Events.startDate
     var minPeople by Events.minPeople
     var maxPeople by Events.maxPeople

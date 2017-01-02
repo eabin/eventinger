@@ -19,10 +19,7 @@ import tk.eabin.events.db.dao.ParticipationType
 import tk.eabin.events.db.schema.EventGroupMaps
 import tk.eabin.events.db.schema.Events
 import tk.eabin.events.db.schema.Participations
-import tk.eabin.events.event.AppEventBus
-import tk.eabin.events.event.EventChangedEvent
-import tk.eabin.events.event.EventCreatedEvent
-import tk.eabin.events.event.ParticipationChangedEvent
+import tk.eabin.events.event.*
 import tk.eabin.events.ui.MainUI.Companion.currentUser
 import java.text.DateFormat
 import java.text.SimpleDateFormat
@@ -42,6 +39,10 @@ private val categoryIcons = hashMapOf("soccer" to FontAwesome.SOCCER_BALL_O)
 class EventsView() : VerticalLayout(), View {
     data class EventChanged(val onChanged: (event: Event) -> Unit)
 
+    data class ToolbarListener(
+            val onEdit: (() -> Unit)? = null,
+            val onDelete: (() -> Unit)? = null
+    )
 
     val eventList by lazy {
         generateEvents()
@@ -170,6 +171,19 @@ class EventsView() : VerticalLayout(), View {
         }
     }
 
+    private fun removeEvents(vararg removedEventIds: Int) {
+
+        ui?.access {
+            transaction {
+                for (event in removedEventIds) {
+                    val eventId = "${event}"
+                    val component = eventList.first { it.id == eventId }
+                    if (component != null) eventList.removeComponent(component)
+                }
+            }
+        }
+    }
+
     private fun generateEvents(): CssLayout {
         println("Generating events layout...")
         val eventsBox = CssLayout().apply {
@@ -206,7 +220,8 @@ class EventsView() : VerticalLayout(), View {
         AppEventBus.postEvent(ParticipationChangedEvent(modifiedEvent.id.value))
     }
 
-    private fun createContentWrapper(content: Component, captionProperty: Property<String>, editCallback: () -> Unit): Component {
+    private fun createContentWrapper(content: Component, captionProperty: Property<String>,
+                                     listener: ToolbarListener): Component {
         val slot = CssLayout()
         slot.setWidth("100%")
         slot.addStyleName("dashboard-panel-slot")
@@ -226,16 +241,24 @@ class EventsView() : VerticalLayout(), View {
 
         val tools = MenuBar()
         tools.addStyleName(ValoTheme.MENUBAR_BORDERLESS)
-        val max = tools.addItem("", FontAwesome.EDIT, MenuBar.Command {
-            editCallback()
+
+        val edit = tools.addItem("", FontAwesome.EDIT, MenuBar.Command {
+            listener.onEdit?.invoke()
         })
-        max.styleName = "icon-only"
+        edit.styleName = "icon-only"
+
+        val delete = tools.addItem("", FontAwesome.TRASH, MenuBar.Command {
+            listener.onDelete?.invoke()
+        })
+        delete.styleName = "icon-only"
+
         val root = tools.addItem("", FontAwesome.COG, null)
         root.addItem("Configure", MenuBar.Command {
             fun menuSelected(selectedItem: MenuBar.MenuItem) {
                 Notification.show("Not implemented in this demo")
             }
         })
+
         root.addSeparator()
         root.addItem("Close", {
             fun menuSelected(selectedItem: MenuBar.MenuItem) {
@@ -313,7 +336,24 @@ class EventsView() : VerticalLayout(), View {
 
         content.addComponent(participations)
         content.addComponent(buttons)
-        return createContentWrapper(content, captionProperty, { ui.addWindow(EditEventWindow(event, "Edit Event", { saveEvent(it) })) })
+        return createContentWrapper(content, captionProperty,
+                ToolbarListener(
+                        onEdit = { ui.addWindow(EditEventWindow(event, "Edit Event", { saveEvent(it) })) },
+                        onDelete = { showConfirmDialog(ui, "Delete Event", "You are about to delete the following event: (TODO)", "Delete", { deleteEvent(event.id.value) }) }
+                )
+
+        )
+    }
+
+    private fun deleteEvent(id: Int) {
+        println("Deleting event: $id")
+        transaction {
+            Event[id].let {
+                it.deleted = true
+                it.flush()
+                AppEventBus.postEvent(EventDeletedEvent(id))
+            }
+        }
     }
 
 
@@ -325,4 +365,7 @@ class EventsView() : VerticalLayout(), View {
 
     @Subscribe
     fun onEventCreated(e: EventCreatedEvent) = updateEvents()
+
+    @Subscribe
+    fun onEventDeleted(e: EventDeletedEvent) = removeEvents(e.eventId)
 }
