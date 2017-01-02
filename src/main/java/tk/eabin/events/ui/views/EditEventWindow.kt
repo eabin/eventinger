@@ -22,13 +22,13 @@ import java.util.*
  * Time: 12:38
  */
 class EditEventWindow(val event: Event?, caption: String, val saveCallback: (window: EditEventWindow) -> Unit) : Window(caption) {
-    private val textComment = TextField("Comment", event?.comment)
+    private val textComment = TextField("Comment", event?.comment ?: "")
     private val comboCategory = ComboBox("Category")
     private val comboLocation = ComboBox("Location")
 
 
-    private val dateStart = DateField("Start Date", if (event != null) Date(event.startDate) else null)
-    private val textMinPeople = TextField("Min. People", if (event != null) event.minPeople.toString() else "2").apply {
+    private val dateStart = DateField("Start Date", if (event != null) Date(event.startDate * 1000) else null)
+    private val textMinPeople = TextField("Min. People", event?.minPeople?.toString() ?: "2").apply {
         addValidator {
             try {
                 val i = Integer.parseInt(it.toString())
@@ -190,12 +190,16 @@ class EditEventWindow(val event: Event?, caption: String, val saveCallback: (win
      */
     fun updateEvent(event: Event) {
         event.apply {
+            creator = MainUI.currentUser
             comment = textComment.value
-            startDate = dateStart.value.time
+            startDate = dateStart.value.time / 1000
             minPeople = textMinPeople.value.toInt()
             category = comboCategory.value as EventCategory
             location = comboLocation.value as EventLocation
         }
+    }
+
+    fun updateEventGroups(event: Event) {
         EventGroupMaps.deleteWhere { EventGroupMaps.event.eq(event.id) }
         selectedGroups.forEach {
             EventGroupMap.new {

@@ -8,6 +8,6 @@ import org.jetbrains.exposed.dao.IntIdTable
  * Date: 23.12.16
  * Time: 23:16
  */
-object EventCategories : IntIdTable("EVENTCATEGORY") {
-    val name = varchar("NAME", 255)
+object EventCategories : IntIdTable("eventcategory") {
+    val name = varchar("name", 255)
 }

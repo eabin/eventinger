@@ -29,7 +29,7 @@ class Participation(id: EntityID<Int>) : IntEntity(id) {
     }
 
     var event by Event referencedOn Participations.eventId
-    var user by User referencedOn Participations.userId
+    var user by User optionalReferencedOn Participations.userId
     var doesParticipate by Participations.doesParticipate
     var externalName by Participations.externalName
 }

@@ -9,6 +9,7 @@ import com.vaadin.server.FontAwesome
 import com.vaadin.server.Responsive
 import com.vaadin.ui.*
 import com.vaadin.ui.themes.ValoTheme
+import org.jetbrains.exposed.sql.StdOutSqlLogger
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -88,13 +89,18 @@ class EventsView() : VerticalLayout(), View {
         val event =
                 if (eventWindow.event == null) {
                     transaction {
-                        Event.new {
+                        val newEvent = Event.new {
                             eventWindow.updateEvent(this)
                         }
+                        eventWindow.updateEventGroups(newEvent)
+                        newEvent
                     }
                 } else {
                     transaction {
+                        logger.addLogger(StdOutSqlLogger())
                         eventWindow.updateEvent(eventWindow.event)
+                        eventWindow.updateEventGroups(eventWindow.event)
+                        eventWindow.event.flush()
                     }
                     eventWindow.event
                 }
@@ -252,12 +258,13 @@ class EventsView() : VerticalLayout(), View {
         content.setMargin(true)
         content.isSpacing = true
 
-        val comment = Label()
+        val comment = Label("")
         comment.caption = "Comment"
         comment.icon = FontAwesome.COMMENT
         content.addComponent(comment)
         addListener(event) {
-            captionProperty.value = event.category.name + " @" + event.location.name + " - " + SimpleDateFormat.getDateTimeInstance(DateFormat.LONG, DateFormat.SHORT).format(Date(event.startDate))
+            captionProperty.value = event.category.name + " @" + event.location.name + " - " + SimpleDateFormat.getDateTimeInstance(DateFormat.LONG, DateFormat.SHORT).format(Date(event.startDate * 1000))
+            println("setting comment to: ${it.comment}")
             comment.value = it.comment
         }
 
@@ -273,7 +280,7 @@ class EventsView() : VerticalLayout(), View {
             l.setSizeUndefined()
 
             addListener(event) {
-                val participants = it.participations.filter { it.doesParticipate == p.value }.joinToString(", ") { it.user.login }
+                val participants = it.participations.filter { it.doesParticipate == p.value }.joinToString(", ") { it.user?.login ?: it.externalName ?: "???" }
                 val text = "[$participants]"
                 l.value = text
             }
@@ -287,7 +294,10 @@ class EventsView() : VerticalLayout(), View {
             for (p in ParticipationType.values()) {
                 addComponent(Button(p.name, p.icon).apply {
                     addListener(event) {
-                        if (it.participations.any { it.user.id == currentUser.id && it.doesParticipate == p.value }) {
+                        if (it.participations.any {
+                            val u = it.user ?: return@any false
+                            u.id == currentUser.id && it.doesParticipate == p.value
+                        }) {
                             addStyleName(ValoTheme.BUTTON_FRIENDLY)
                         } else {
                             removeStyleName(ValoTheme.BUTTON_FRIENDLY)

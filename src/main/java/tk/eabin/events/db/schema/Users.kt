@@ -8,8 +8,8 @@ import org.jetbrains.exposed.dao.IntIdTable
  * Date: 23.12.16
  * Time: 23:43
  */
-object Users : IntIdTable("SYSTEMUSER") {
-    val login = varchar("LOGIN", 255)
-    val password = varchar("PASSWORD", 255).nullable()
+object Users : IntIdTable("systemuser") {
+    val login = varchar("login", 255)
+    val password = varchar("password", 255).nullable()
 
 }

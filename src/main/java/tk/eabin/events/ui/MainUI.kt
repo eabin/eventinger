@@ -4,10 +4,13 @@ import com.google.common.eventbus.EventBus
 import com.vaadin.annotations.Push
 import com.vaadin.annotations.Theme
 import com.vaadin.annotations.Title
+import com.vaadin.server.Page
 import com.vaadin.server.Responsive
 import com.vaadin.server.VaadinRequest
 import com.vaadin.server.VaadinSession
+import com.vaadin.shared.Position
 import com.vaadin.spring.annotation.SpringUI
+import com.vaadin.ui.Notification
 import com.vaadin.ui.UI
 import com.vaadin.ui.themes.ValoTheme
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -48,6 +51,17 @@ open class MainUI : UI() {
         println("Cleaning up...")
     }
 
+    private fun notify(caption: String, info: String) {
+        val notification = Notification(caption)
+        notification.description = info
+        notification.isHtmlContentAllowed = true
+        notification.styleName = "tray dark small closable"
+        notification.position = Position.BOTTOM_CENTER
+        notification.delayMsec = 60000
+        notification.show(Page.getCurrent())
+
+    }
+
     override fun init(request: VaadinRequest) {
         Responsive.makeResponsive(this)
         addStyleName(ValoTheme.UI_WITH_MENU);
@@ -60,6 +74,7 @@ open class MainUI : UI() {
                         "Logged in with user name " + username +
                                 " and password " + password.length)
                 transaction {
+                    var success = false
                     val user = User.find { Users.login.eq(username) }
                     if (!user.empty()) {
                         val wannabe = user.first()
@@ -69,9 +84,14 @@ open class MainUI : UI() {
                             removeStyleName("loginview")
                             content = MainView()
                             navigator.navigateTo(navigator.state)
+                            success = true
+                        } else {
                         }
                     }
-
+                    println("Login check: $success")
+                    if (!success) {
+                        notify("Invalid username/password", "The username/password you entered is not correct")
+                    }
                 }
             }
             content = loginForm

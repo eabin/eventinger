@@ -8,9 +8,9 @@ import org.jetbrains.exposed.dao.IntIdTable
  * Date: 23.12.16
  * Time: 23:43
  */
-object Participations : IntIdTable("PARTICIPATION") {
-    val eventId = reference("EVENT_ID", Events)
-    val userId = reference("USER_ID", Users)
-    val doesParticipate = integer("DOESPARTICIPATE")
-    val externalName = varchar("EXTERNALNAME", 255).nullable()
+object Participations : IntIdTable("participation") {
+    val eventId = reference("event_id", Events)
+    val userId = reference("user_id", Users).nullable()
+    val doesParticipate = integer("doesparticipate")
+    val externalName = varchar("externalname", 255).nullable()
 }

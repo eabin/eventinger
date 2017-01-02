@@ -8,7 +8,7 @@ import org.jetbrains.exposed.dao.IntIdTable
  * Date: 23.12.16
  * Time: 23:43
  */
-object LocationGroupMaps : IntIdTable("LOCATION_GROUP") {
-    val location = reference("LOCATION_ID", EventLocations)
-    val group = reference("USERGROUP_ID", UserGroups)
+object LocationGroupMaps : IntIdTable("location_group") {
+    val location = reference("location_id", EventLocations)
+    val group = reference("usergroup_id", UserGroups)
 }

@@ -9,7 +9,7 @@ import org.jetbrains.exposed.dao.IntIdTable
  * Time: 23:42
  */
 
-object EventLocations : IntIdTable("EVENTLOCATION") {
-    val name = varchar("NAME", 255)
-    val categoryId = reference("CATEGORY_ID", EventCategories)
+object EventLocations : IntIdTable("eventlocation") {
+    val name = varchar("name", 255)
+    val categoryId = reference("category_id", EventCategories)
 }

@@ -9,9 +9,9 @@ import java.util.*
  * Date: 23.12.16
  * Time: 23:43
  */
-object EventComments : IntIdTable("EVENTCOMMENT") {
-    val eventId = reference("EVENT_ID", Events)
-    val userId = reference("USER_ID", Users)
-    val comment = varchar("COMMENT", 65535)
-    val creationDate = long("CDATE").clientDefault { Date().time }
+object EventComments : IntIdTable("eventcomment") {
+    val eventId = reference("event_id", Events)
+    val userId = reference("user_id", Users)
+    val comment = varchar("comment", 65535)
+    val creationDate = long("cdate").clientDefault { Date().time }
 }

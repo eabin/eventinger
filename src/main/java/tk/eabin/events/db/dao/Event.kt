@@ -17,6 +17,7 @@ import tk.eabin.events.db.schema.Participations
 class Event(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<Event>(Events)
 
+    var creator by User referencedOn Events.creatorId
     var startDate by Events.startDate
     var minPeople by Events.minPeople
     var maxPeople by Events.maxPeople
