@@ -159,6 +159,12 @@
   }
 
 
+  .v-slot-event-chat-small {
+    .v-panel-caption {
+        margin: 0 !important;
+    }
+  }
+
   .event-participation {
         .v-widget {
             display: inline-block;

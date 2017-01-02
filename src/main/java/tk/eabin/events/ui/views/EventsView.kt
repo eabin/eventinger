@@ -14,8 +14,10 @@ import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import tk.eabin.events.db.dao.Event
+import tk.eabin.events.db.dao.EventComment
 import tk.eabin.events.db.dao.Participation
 import tk.eabin.events.db.dao.ParticipationType
+import tk.eabin.events.db.schema.EventComments
 import tk.eabin.events.db.schema.EventGroupMaps
 import tk.eabin.events.db.schema.Events
 import tk.eabin.events.db.schema.Participations
@@ -150,7 +152,7 @@ class EventsView() : VerticalLayout(), View {
                     val eventId = "${event.id.value}"
                     val listeners = eventListeners[event.id.value]
                     if (listeners == null || listeners.isEmpty()) {
-                        val box = generateEventBox(event)
+                        val box = buildEventBox(event)
                         box.id = eventId
                         val nextIndex = eventList.indexOfFirst {
                             val e = eventMap[it.id.toInt()] ?: return@indexOfFirst false
@@ -253,18 +255,15 @@ class EventsView() : VerticalLayout(), View {
         delete.styleName = "icon-only"
 
         val root = tools.addItem("", FontAwesome.COG, null)
-        root.addItem("Configure", MenuBar.Command {
-            fun menuSelected(selectedItem: MenuBar.MenuItem) {
-                Notification.show("Not implemented in this demo")
-            }
+        root.addItem("External Participants", {
+            Notification.show("Not implemented in this demo")
         })
 
         root.addSeparator()
         root.addItem("Close", {
-            fun menuSelected(selectedItem: MenuBar.MenuItem) {
-                Notification.show("Not implemented in this demo")
-            }
+            Notification.show("Not implemented in this demo")
         })
+
 
         toolbar.addComponents(caption, tools)
         toolbar.setExpandRatio(caption, 1f)
@@ -275,42 +274,65 @@ class EventsView() : VerticalLayout(), View {
         return slot
     }
 
-    private fun generateEventBox(event: Event): Component {
+    private fun buildEventBox(event: Event): Component {
         val content = VerticalLayout()
-        val captionProperty = ObjectProperty<String>("")
         content.setMargin(true)
         content.isSpacing = true
 
-        val comment = Label("")
-        comment.caption = "Comment"
-        comment.icon = FontAwesome.COMMENT
-        content.addComponent(comment)
-        addListener(event) {
-            captionProperty.value = event.category.name + " @" + event.location.name + " - " + SimpleDateFormat.getDateTimeInstance(DateFormat.LONG, DateFormat.SHORT).format(Date(event.startDate * 1000))
-            println("setting comment to: ${it.comment}")
-            comment.value = it.comment
-        }
+        val captionProperty = ObjectProperty<String>("")
+        addListener(event) { captionProperty.value = event.category.name + " @" + event.location.name + " - " + SimpleDateFormat.getDateTimeInstance(DateFormat.LONG, DateFormat.SHORT).format(Date(event.startDate * 1000)) }
 
-        val participations = HorizontalLayout()
-        participations.setSizeFull()
-        participations.addStyleName("event-participation")
-        Responsive.makeResponsive(participations)
+        val info = Label("")
+        info.caption = "Info"
+        info.icon = FontAwesome.INFO
+        addListener(event) { info.value = it.comment }
+        content.addComponent(info)
 
-        for (p in ParticipationType.values()) {
-            val l = Label()
-            l.icon = p.icon
-            l.caption = p.name
-            l.setSizeUndefined()
+        val participations = buildParticipationBox(event)
+        content.addComponent(participations)
+
+        val chat = buildChatBox(event)
+        content.addComponent(chat)
+
+        val buttons = buildButtonBox(event)
+        content.addComponent(buttons)
+
+        return createContentWrapper(content, captionProperty,
+                ToolbarListener(
+                        onEdit = { ui.addWindow(EditEventWindow(event, "Edit Event", { saveEvent(it) })) },
+                        onDelete = { showConfirmDialog(ui, "Delete Event", "You are about to delete the following event: (TODO)", "Delete", { deleteEvent(event.id.value) }) }
+                )
+        )
+    }
+
+    private fun buildChatBox(event: Event): Component {
+        val chatBox = VerticalLayout().apply {
+            setMargin(true)
+
+            val mostRecentComment = Label()
+            mostRecentComment.addStyleName(ValoTheme.LABEL_SMALL)
+            addComponent(mostRecentComment)
 
             addListener(event) {
-                val participants = it.participations.filter { it.doesParticipate == p.value }.joinToString(", ") { it.user?.login ?: it.externalName ?: "???" }
-                val text = "[$participants]"
-                l.value = text
+                transaction {
+                    val commentsRaw = EventComments.select { EventComments.eventId.eq(event.id) }.orderBy(EventComments.creationDate, isAsc = false).limit(1)
+                    if (!commentsRaw.empty()) {
+                        val comment = EventComment.wrapRow(commentsRaw.first(), this)
+                        mostRecentComment.caption = comment.user.login
+                        mostRecentComment.value = comment.comment
+                    }
+                }
             }
-
-            participations.addComponent(l)
         }
 
+        val panel = Panel("Chat", chatBox)
+        panel.icon = FontAwesome.COMMENTS
+        panel.addStyleName(ValoTheme.PANEL_BORDERLESS)
+        panel.addStyleName("event-chat-small")
+        return panel
+    }
+
+    private fun buildButtonBox(event: Event): Component {
         val buttons = CssLayout().apply {
             addStyleName("event-buttons")
 
@@ -333,16 +355,30 @@ class EventsView() : VerticalLayout(), View {
             }
         }
         Responsive.makeResponsive(buttons)
+        return buttons
+    }
 
-        content.addComponent(participations)
-        content.addComponent(buttons)
-        return createContentWrapper(content, captionProperty,
-                ToolbarListener(
-                        onEdit = { ui.addWindow(EditEventWindow(event, "Edit Event", { saveEvent(it) })) },
-                        onDelete = { showConfirmDialog(ui, "Delete Event", "You are about to delete the following event: (TODO)", "Delete", { deleteEvent(event.id.value) }) }
-                )
+    private fun buildParticipationBox(event: Event): HorizontalLayout {
+        val participations = HorizontalLayout()
+        participations.setSizeFull()
+        participations.addStyleName("event-participation")
+        Responsive.makeResponsive(participations)
 
-        )
+        for (p in ParticipationType.values()) {
+            val l = Label()
+            l.icon = p.icon
+            l.caption = p.name
+            l.setSizeUndefined()
+
+            addListener(event) {
+                val participants = it.participations.filter { it.doesParticipate == p.value }.joinToString(", ") { it.user?.login ?: it.externalName ?: "???" }
+                val text = "[$participants]"
+                l.value = text
+            }
+
+            participations.addComponent(l)
+        }
+        return participations
     }
 
     private fun deleteEvent(id: Int) {

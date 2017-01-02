@@ -22,7 +22,7 @@ import java.util.*
  * Time: 12:38
  */
 class EditEventWindow(val event: Event?, caption: String, val saveCallback: (window: EditEventWindow) -> Unit) : Window(caption) {
-    private val textComment = TextField("Comment", event?.comment ?: "")
+    private val textInfo = TextField("Info", event?.comment ?: "")
     private val comboCategory = ComboBox("Category")
     private val comboLocation = ComboBox("Location")
 
@@ -60,7 +60,7 @@ class EditEventWindow(val event: Event?, caption: String, val saveCallback: (win
         buildCategoryLocationSelector()
         result.addComponent(comboCategory)
         result.addComponent(comboLocation)
-        result.addComponent(textComment)
+        result.addComponent(textInfo)
         configureStartDate()
         result.addComponent(dateStart)
         result.addComponent(textMinPeople)
@@ -96,7 +96,7 @@ class EditEventWindow(val event: Event?, caption: String, val saveCallback: (win
         comboLocation.addValueChangeListener { checkSaveable() }
         dateStart.addValueChangeListener { checkSaveable() }
         optionGroups.addValueChangeListener { checkSaveable() }
-        textComment.addValueChangeListener { checkSaveable() }
+        textInfo.addValueChangeListener { checkSaveable() }
     }
 
     private fun configureStartDate() {
@@ -181,7 +181,7 @@ class EditEventWindow(val event: Event?, caption: String, val saveCallback: (win
                 && textMinPeople.isValid
                 && !dateStart.isEmpty
                 && !selectedGroups.isEmpty()
-                && !textComment.isEmpty
+                && !textInfo.isEmpty
     }
 
     /**
@@ -191,7 +191,7 @@ class EditEventWindow(val event: Event?, caption: String, val saveCallback: (win
     fun updateEvent(event: Event) {
         event.apply {
             creator = MainUI.currentUser
-            comment = textComment.value
+            comment = textInfo.value
             startDate = dateStart.value.time / 1000
             minPeople = textMinPeople.value.toInt()
             category = comboCategory.value as EventCategory
