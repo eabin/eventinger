@@ -159,17 +159,26 @@
   }
 
 
-  .event-participation[width-range~="0-400px"] {
-        .v-slot {
+  .event-participation {
+        .v-widget {
+            display: inline-block;
+            white-space: normal;
             width: 100%;
-            display: block;
         }
-   }
 
-  .event-participation[width-range~="401px-"] {
-        .v-slot {
-            width: 33.3%;
+        &[width-range~="0-400px"] {
+            .v-slot {
+                width: 100% !important;
+                display: block;
+            }
         }
+
+        &[width-range~="401px-"] {
+            .v-slot {
+                width: 33.3%;
+            }
+        }
+
    }
 
   .event-buttons[width-range~="0-400px"] {
