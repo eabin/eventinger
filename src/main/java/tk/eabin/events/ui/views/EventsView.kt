@@ -23,6 +23,8 @@ import tk.eabin.events.event.EventChangedEvent
 import tk.eabin.events.event.EventCreatedEvent
 import tk.eabin.events.event.ParticipationChangedEvent
 import tk.eabin.events.ui.MainUI.Companion.currentUser
+import java.text.DateFormat
+import java.text.SimpleDateFormat
 import java.util.*
 
 
@@ -45,15 +47,17 @@ class EventsView() : VerticalLayout(), View {
     }
 
     init {
+        println("Init EventsView")
+    }
+
+    override fun attach() {
+        AppEventBus.registerWithEventBus(this)
+        println("Attaching UI...")
         addStyleName("dashboard-view")
         val header = generateHeader()
         addComponent(header)
         addComponent(eventList)
         setExpandRatio(eventList, 1f)
-    }
-
-    override fun attach() {
-        AppEventBus.registerWithEventBus(this)
     }
 
     override fun detach() {
@@ -128,19 +132,28 @@ class EventsView() : VerticalLayout(), View {
         ui?.access {
             transaction {
                 val userGroupIds = currentUser.groups.map { it.id }
-                // todo: this is an ugly version of filtering and sorting; better would be to do a select where exists to find
+                // todo: this is an ugly version of filtering and sorting and inserting; make this perform!
                 // out about group relations - or find a mechanism that exposed already provides
-                val events = (Events innerJoin EventGroupMaps).select {
+                val rawEvents = (Events innerJoin EventGroupMaps).select {
                     Events.deleted.eq(false).and(Events.archived.eq(false)).and(EventGroupMaps.group.inList(userGroupIds))
                 }.orderBy(Events.startDate, isAsc = true)
-
-                for (event in Event.wrapRows(events).toSortedSet(Comparator { a, b -> a.startDate.compareTo(b.startDate) })) {
-                    val eventId = "event-${event.id.value}"
+                val events = Event.wrapRows(rawEvents)
+                val eventMap = events.associateBy { it.id.value }
+                for (event in events.toSortedSet(Comparator { a, b -> a.startDate.compareTo(b.startDate) })) {
+                    val eventId = "${event.id.value}"
                     val listeners = eventListeners[event.id.value]
                     if (listeners == null || listeners.isEmpty()) {
                         val box = generateEventBox(event)
                         box.id = eventId
-                        eventList.addComponent(box) // todo: insert at correct position
+                        val nextIndex = eventList.indexOfFirst {
+                            val e = eventMap[it.id.toInt()] ?: return@indexOfFirst false
+                            e.startDate > event.startDate
+                        }
+                        if (nextIndex < 0) {
+                            eventList.addComponent(box)
+                        } else {
+                            eventList.addComponent(box, nextIndex)
+                        }
                         // retry-update, because the eventbox is an empty shell
                         eventListeners[event.id.value]?.forEach { it.onChanged(event) }
                     } else {
@@ -187,7 +200,7 @@ class EventsView() : VerticalLayout(), View {
         AppEventBus.postEvent(ParticipationChangedEvent(modifiedEvent.id.value))
     }
 
-    private fun createContentWrapper(content: Component, captionProperty: Property<String>): Component {
+    private fun createContentWrapper(content: Component, captionProperty: Property<String>, editCallback: () -> Unit): Component {
         val slot = CssLayout()
         slot.setWidth("100%")
         slot.addStyleName("dashboard-panel-slot")
@@ -207,18 +220,8 @@ class EventsView() : VerticalLayout(), View {
 
         val tools = MenuBar()
         tools.addStyleName(ValoTheme.MENUBAR_BORDERLESS)
-        val max = tools.addItem("", FontAwesome.EXPAND, MenuBar.Command {
-
-            fun menuSelected(selectedItem: MenuBar.MenuItem) {
-                if (!slot.styleName.contains("max")) {
-                    selectedItem.setIcon(FontAwesome.COMPRESS)
-//                    toggleMaximized(slot, true)
-                } else {
-                    slot.removeStyleName("max")
-                    selectedItem.setIcon(FontAwesome.EXPAND)
-//                    toggleMaximized(slot, false)
-                }
-            }
+        val max = tools.addItem("", FontAwesome.EDIT, MenuBar.Command {
+            editCallback()
         })
         max.styleName = "icon-only"
         val root = tools.addItem("", FontAwesome.COG, null)
@@ -254,7 +257,7 @@ class EventsView() : VerticalLayout(), View {
         comment.icon = FontAwesome.COMMENT
         content.addComponent(comment)
         addListener(event) {
-            captionProperty.value = event.category.name
+            captionProperty.value = event.category.name + " @" + event.location.name + " - " + SimpleDateFormat.getDateTimeInstance(DateFormat.LONG, DateFormat.SHORT).format(Date(event.startDate))
             comment.value = it.comment
         }
 
@@ -300,7 +303,7 @@ class EventsView() : VerticalLayout(), View {
 
         content.addComponent(participations)
         content.addComponent(buttons)
-        return createContentWrapper(content, captionProperty)
+        return createContentWrapper(content, captionProperty, { ui.addWindow(EditEventWindow(event, "Edit Event", { saveEvent(it) })) })
     }
 
 

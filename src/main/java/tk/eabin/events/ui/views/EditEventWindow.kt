@@ -12,6 +12,7 @@ import tk.eabin.events.db.dao.*
 import tk.eabin.events.db.schema.EventGroupMaps
 import tk.eabin.events.db.schema.EventLocations
 import tk.eabin.events.ui.MainUI
+import java.util.*
 
 
 /**
@@ -21,11 +22,13 @@ import tk.eabin.events.ui.MainUI
  * Time: 12:38
  */
 class EditEventWindow(val event: Event?, caption: String, val saveCallback: (window: EditEventWindow) -> Unit) : Window(caption) {
-    private val textComment = TextField("Comment")
+    private val textComment = TextField("Comment", event?.comment)
     private val comboCategory = ComboBox("Category")
     private val comboLocation = ComboBox("Location")
-    private val dateStart = DateField("Start Date")
-    private val textMinPeople = TextField("Min. People", "2").apply {
+
+
+    private val dateStart = DateField("Start Date", if (event != null) Date(event.startDate) else null)
+    private val textMinPeople = TextField("Min. People", if (event != null) event.minPeople.toString() else "2").apply {
         addValidator {
             try {
                 val i = Integer.parseInt(it.toString())
@@ -78,10 +81,14 @@ class EditEventWindow(val event: Event?, caption: String, val saveCallback: (win
             for (g in MainUI.currentUser.groups) {
                 items.addBean(g)
             }
+            optionGroups.containerDataSource = items
+            optionGroups.itemCaptionMode = AbstractSelect.ItemCaptionMode.PROPERTY
+            optionGroups.itemCaptionPropertyId = "name"
+
+            if (event != null) {
+                for (g in event.groups) optionGroups.select(g)
+            }
         }
-        optionGroups.containerDataSource = items
-        optionGroups.itemCaptionMode = AbstractSelect.ItemCaptionMode.PROPERTY
-        optionGroups.itemCaptionPropertyId = "name"
     }
 
     private fun setupChangeListeners() {
@@ -104,27 +111,33 @@ class EditEventWindow(val event: Event?, caption: String, val saveCallback: (win
                 container.addBean(category)
             }
             comboCategory.containerDataSource = container
-        }
 
-        comboCategory.itemCaptionMode = AbstractSelect.ItemCaptionMode.PROPERTY
-        comboCategory.itemCaptionPropertyId = "name"
+            comboCategory.itemCaptionMode = AbstractSelect.ItemCaptionMode.PROPERTY
+            comboCategory.itemCaptionPropertyId = "name"
+            comboCategory.select(event?.category)
 
-        comboCategory.addValueChangeListener {
-            val dataSource = BeanItemContainer(EventLocation::class.java)
-            if (it.property.value != null) {
+            comboCategory.addValueChangeListener {
                 val category = it.property.value as EventCategory
-                transaction {
-                    val locations = EventLocation.find { EventLocations.categoryId.eq(category.id) }
-                    for (location in locations) {
-                        dataSource.addBean(location)
-                    }
-                }
+                populateLocations(category)
             }
-            comboLocation.containerDataSource = dataSource
-        }
 
-        comboLocation.itemCaptionMode = AbstractSelect.ItemCaptionMode.PROPERTY
-        comboLocation.itemCaptionPropertyId = "name"
+            if (event != null) populateLocations(event.category)
+
+            comboLocation.itemCaptionMode = AbstractSelect.ItemCaptionMode.PROPERTY
+            comboLocation.itemCaptionPropertyId = "name"
+            comboLocation.select(event?.location)
+        }
+    }
+
+    private fun populateLocations(category: EventCategory) {
+        val dataSource = BeanItemContainer(EventLocation::class.java)
+        transaction {
+            val locations = EventLocation.find { EventLocations.categoryId.eq(category.id) }
+            for (location in locations) {
+                dataSource.addBean(location)
+            }
+        }
+        comboLocation.containerDataSource = dataSource
     }
 
     private fun buildFooter(): Component {
@@ -183,7 +196,7 @@ class EditEventWindow(val event: Event?, caption: String, val saveCallback: (win
             category = comboCategory.value as EventCategory
             location = comboLocation.value as EventLocation
         }
-        EventGroupMaps.deleteWhere { EventGroupMaps.id.inList(event.groups.map { it.id }) }
+        EventGroupMaps.deleteWhere { EventGroupMaps.event.eq(event.id) }
         selectedGroups.forEach {
             EventGroupMap.new {
                 this.event = event
