@@ -7,8 +7,11 @@ import com.vaadin.navigator.View
 import com.vaadin.navigator.ViewChangeListener
 import com.vaadin.server.FontAwesome
 import com.vaadin.server.Responsive
+import com.vaadin.shared.ui.MarginInfo
+import com.vaadin.shared.ui.label.ContentMode
 import com.vaadin.ui.*
 import com.vaadin.ui.themes.ValoTheme
+import org.jetbrains.exposed.dao.EntityID
 import org.jetbrains.exposed.sql.StdOutSqlLogger
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.select
@@ -49,6 +52,8 @@ class EventsView() : VerticalLayout(), View {
     val eventList by lazy {
         generateEvents()
     }
+
+    val captionDateFormat = SimpleDateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
 
     init {
         println("Init EventsView")
@@ -280,10 +285,10 @@ class EventsView() : VerticalLayout(), View {
         content.isSpacing = true
 
         val captionProperty = ObjectProperty<String>("")
-        addListener(event) { captionProperty.value = event.category.name + " @" + event.location.name + " - " + SimpleDateFormat.getDateTimeInstance(DateFormat.LONG, DateFormat.SHORT).format(Date(event.startDate * 1000)) }
+        addListener(event) { captionProperty.value = event.category.name + " @" + event.location.name + " - " + captionDateFormat.format(Date(event.startDate * 1000)) }
 
         val info = Label("")
-        info.caption = "Info"
+        info.caption = "Info [${event.id.value}]"
         info.icon = FontAwesome.INFO
         addListener(event) { info.value = it.comment }
         content.addComponent(info)
@@ -306,30 +311,178 @@ class EventsView() : VerticalLayout(), View {
     }
 
     private fun buildChatBox(event: Event): Component {
-        val chatBox = VerticalLayout().apply {
-            setMargin(true)
+        var isMaximized = false
+        var mostRecentCommentId = -1
+        val mostRecentComment = Label()
+        val chatBox = VerticalLayout()
+        val chatText = TextField()
 
-            val mostRecentComment = Label()
-            mostRecentComment.addStyleName(ValoTheme.LABEL_SMALL)
-            addComponent(mostRecentComment)
-
-            addListener(event) {
-                transaction {
+        fun updateChatEntries() {
+            transaction {
+                if (!isMaximized) {
                     val commentsRaw = EventComments.select { EventComments.eventId.eq(event.id) }.orderBy(EventComments.creationDate, isAsc = false).limit(1)
                     if (!commentsRaw.empty()) {
-                        val comment = EventComment.wrapRow(commentsRaw.first(), this)
-                        mostRecentComment.caption = comment.user.login
+                        val comment = EventComment.wrapRows(commentsRaw).first()
+                        mostRecentComment.caption = comment.user.login + " - " + captionDateFormat.format(Date(comment.creationDate * 1000))
                         mostRecentComment.value = comment.comment
+                        mostRecentCommentId = comment.id.value
                     }
+                } else {
+                    val commentsRaw = EventComments.select { EventComments.eventId.eq(event.id).and(EventComments.id.greater(EntityID(mostRecentCommentId, EventComments))) }.orderBy(EventComments.creationDate, isAsc = true)
+                    val comments = EventComment.wrapRows(commentsRaw)
+                    for (comment in comments) {
+                        val commentLabel = Label()
+                        commentLabel.addStyleName(ValoTheme.LABEL_SMALL)
+                        commentLabel.caption = comment.user.login + " - " + captionDateFormat.format(Date(comment.creationDate * 1000))
+                        commentLabel.value = comment.comment
+                        mostRecentCommentId = comment.id.value
+                        chatBox.addComponent(commentLabel, chatBox.componentCount - 1)
+                    }
+
                 }
+
             }
         }
 
-        val panel = Panel("Chat", chatBox)
+        fun addComment() {
+            if (chatText.isEmpty) return
+            transaction {
+                EventComment.new {
+                    this.comment = chatText.value
+                    this.event = event
+                    this.user = currentUser
+                }
+            }
+            chatText.clear()
+            updateChatEntries()
+            AppEventBus.postEvent(CommentCreatedEvent(event.id.value))
+        }
+
+        chatBox.apply {
+            margin = MarginInfo(false, true)
+            mostRecentComment.addStyleName(ValoTheme.LABEL_SMALL)
+            addComponent(mostRecentComment)
+
+        }
+
+        addListener(event) {
+            updateChatEntries()
+        }
+
+
+        val panel = CssLayout()
+//        layout.addStyleName(ValoTheme.LAYOUT_CARD)
+        panel.addStyleName("event-chat-small")
+        panel.setWidth("100%")
+        val panelCaption = HorizontalLayout()
+        panelCaption.isSpacing = false
+//        panelCaption.addStyleName("v-panel-caption")
+        panelCaption.setWidth("100%")
+        val label = Label()
+//        label.addStyleName("v-caption-on-left")
+//        label.caption = "Chat"
+
+        label.contentMode = ContentMode.HTML
+        label.value = """<div class="v-caption">${FontAwesome.COMMENTS.html}<span class="v-captiontext">Chat</span></div>"""
+
+        panelCaption.addComponent(label)
+        panelCaption.setExpandRatio(label, 1f)
+
+        val action = Button()
+        action.icon = FontAwesome.COMPRESS
+        action.addStyleName(ValoTheme.BUTTON_BORDERLESS_COLORED)
+        action.addStyleName(ValoTheme.BUTTON_SMALL)
+        action.addStyleName(ValoTheme.BUTTON_ICON_ONLY)
+
+//        val dropdown = MenuBar()
+//        dropdown.addStyleName(ValoTheme.MENUBAR_BORDERLESS)
+//        dropdown.addStyleName(ValoTheme.MENUBAR_SMALL)
+//        val addItem = dropdown.addItem("", FontAwesome.CHEVRON_DOWN, null)
+//        addItem.styleName = "icon-only"
+//        addItem.addItem("Settings", null)
+//        addItem.addItem("Preferences", null)
+//        addItem.addSeparator()
+//        addItem.addItem("Sign Out", null)
+//        panelCaption.addComponent(dropdown);
+
+        panel.addComponent(panelCaption);
+        panel.addComponent(chatBox);
+
+        val chatter = HorizontalLayout()
+        chatter.setSizeFull()
+        chatter.margin = MarginInfo(true, false, false, false)
+
+        chatText.addStyleName(ValoTheme.TEXTFIELD_INLINE_ICON)
+        chatText.icon = FontAwesome.COMMENT_O
+
+/*        chatText.addShortcutListener(object : ShortcutListener("Submit", null, ShortcutAction.KeyCode.ENTER, ShortcutAction.ModifierKey.CTRL) {
+            override fun handleAction(p0: Any?, p1: Any?) {
+                addComment()
+            }
+        }) */
+
+        val btnChat = Button(FontAwesome.PLUS)
+        btnChat.setHeight("100%")
+        btnChat.addStyleName(ValoTheme.BUTTON_PRIMARY)
+        btnChat.addClickListener {
+            addComment()
+        }
+
+        chatter.addComponent(chatText)
+        chatter.addComponent(btnChat)
+
+        chatter.setExpandRatio(chatText, 1f)
+
+
+        action.addClickListener {
+            if (isMaximized) {
+                println("Minimizing again...")
+                panel.removeStyleName("event-chat-max")
+                panel.addStyleName("event-chat-small")
+                isMaximized = false
+                mostRecentCommentId = -1
+                panelCaption.removeComponent(action)
+                chatBox.removeAllComponents()
+                chatBox.addComponent(mostRecentComment)
+                updateChatEntries()
+            }
+        }
+
+        panel.addLayoutClickListener {
+            if (!isMaximized) {
+                panel.removeStyleName("event-chat-small")
+                panel.addStyleName("event-chat-max")
+                isMaximized = true
+                mostRecentCommentId = -1
+                panelCaption.addComponent(action)
+                chatBox.removeAllComponents()
+                chatBox.addComponent(chatter)
+                updateChatEntries()
+                chatText.focus()
+            }
+        }
+        return panel
+
+
+/*        val panel = Panel("Chat", chatBox)
         panel.icon = FontAwesome.COMMENTS
         panel.addStyleName(ValoTheme.PANEL_BORDERLESS)
         panel.addStyleName("event-chat-small")
-        return panel
+        panel.addClickListener {
+            if (!isMaximized) {
+                panel.removeStyleName("event-chat-small")
+                panel.removeStyleName(ValoTheme.PANEL_BORDERLESS)
+                panel.addStyleName("event-chat-max")
+                isMaximized = true
+                mostRecentCommentId = -1
+                ui.access {
+                    chatBox.removeAllComponents()
+                    updateChatEntries()
+                    panel.markAsDirty()
+                }
+            }
+        }
+        return panel    */
     }
 
     private fun buildButtonBox(event: Event): Component {
@@ -398,6 +551,9 @@ class EventsView() : VerticalLayout(), View {
 
     @Subscribe
     fun onEventChanged(e: EventChangedEvent) = updateEvents(e.eventId)
+
+    @Subscribe
+    fun onCommentCreated(e: CommentCreatedEvent) = updateEvents(e.eventId)
 
     @Subscribe
     fun onEventCreated(e: EventCreatedEvent) = updateEvents()

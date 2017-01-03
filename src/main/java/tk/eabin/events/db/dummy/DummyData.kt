@@ -21,7 +21,7 @@ fun createDummyData() {
             throw IllegalStateException("Expecting empty database")
         }
         SchemaUtils.create(Users, EventLocations, EventCategories, Events, Participations, EventUsers, UserGroups, UserGroupMaps,
-                LocationGroupMaps, EventComments, EventGroupMaps)
+                LocationGroupMaps, EventComments, EventGroupMaps, UserCookies)
 
         val user1 = User.new {
             login = "test"
@@ -130,7 +130,7 @@ fun createDummyData() {
             this.category = categorySoccer
             this.location = locationPlayground
             comment = "Dummy Event"
-            startDate = Date().time
+            startDate = Date().time / 1000
             minPeople = 6
         }.apply {
             for (g in arrayOf(group1, group2, group3)) {
@@ -145,7 +145,7 @@ fun createDummyData() {
             this.category = categoryMovies
             this.location = locationMovieplex
             comment = "Not in group3"
-            startDate = Date().time
+            startDate = Date().time / 1000
             minPeople = 6
         }.apply {
             for (g in arrayOf(group1, group2)) {

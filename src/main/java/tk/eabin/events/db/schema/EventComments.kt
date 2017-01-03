@@ -13,5 +13,5 @@ object EventComments : IntIdTable("eventcomment") {
     val eventId = reference("event_id", Events)
     val userId = reference("user_id", Users)
     val comment = varchar("comment", 65535)
-    val creationDate = long("cdate").clientDefault { Date().time }
+    val creationDate = long("cdate").clientDefault { Date().time / 1000 }
 }

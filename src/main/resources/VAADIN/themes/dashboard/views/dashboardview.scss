@@ -159,22 +159,34 @@
   }
 
 
-  .v-slot-event-chat-small {
-    .v-panel-caption {
-        margin: 0 !important;
+  .v-slot.v-slot-event-chat-small {
+    &:hover {
+        border: 1px dotted #197de1;
+    }
+    margin: -1px !important;
+    border: 1px solid white;
+  }
+
+  .v-slot.v-slot-event-chat-max {
+    margin: -1px !important;
+    border: 1px solid white;
+    .v-textfield {
+        width: 100%;
     }
   }
 
   .event-participation {
+
         .v-widget {
             display: inline-block;
             white-space: normal;
-            width: 100%;
+            width: 100% !important;
+            height: 100%;
         }
 
         &[width-range~="0-400px"] {
             .v-slot {
-                width: 100% !important;
+                width: 100%;
                 display: block;
             }
         }
@@ -182,6 +194,11 @@
         &[width-range~="401px-"] {
             .v-slot {
                 width: 33.3%;
+                height: 100%;
+            }
+            .v-label {
+                // border: 1px dotted #dddddd;
+                height: 100%;
             }
         }
 
