@@ -3,6 +3,7 @@ package tk.eabin.events
 import com.vaadin.server.SessionInitEvent
 import com.vaadin.server.SessionInitListener
 import com.vaadin.spring.server.SpringVaadinServlet
+import org.h2.tools.Server
 import org.jetbrains.exposed.sql.Database
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Value
@@ -36,6 +37,7 @@ open class EventsApplication {
         if (createDummy) {
             createDummyData()
         }
+        Server.createWebServer("-webPort", "9091").start()
 
         val servlet = object : SpringVaadinServlet() {
 

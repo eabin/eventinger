@@ -147,7 +147,6 @@ class EventsView() : VerticalLayout(), View {
 
         ui?.access {
             transaction {
-                logger.addLogger(StdOutSqlLogger())
                 val userGroupIds = currentUser?.groups?.map { it.id } ?: emptyList()
                 // todo: this is an ugly version of filtering and sorting and inserting; make this perform!
                 // out about group relations - or find a mechanism that exposed already provides
