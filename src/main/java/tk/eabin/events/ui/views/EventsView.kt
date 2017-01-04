@@ -356,10 +356,12 @@ class EventsView() : VerticalLayout(), View {
             chatText.clear()
             updateChatEntries()
             AppEventBus.postEvent(CommentCreatedEvent(event.id.value))
+            chatText.focus()
         }
 
         chatBox.apply {
             margin = MarginInfo(false, true)
+            addStyleName("event-chatbox")
             mostRecentComment.addStyleName(ValoTheme.LABEL_SMALL)
             addComponent(mostRecentComment)
 
