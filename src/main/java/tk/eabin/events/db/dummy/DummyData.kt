@@ -129,6 +129,7 @@ fun createDummyData() {
         val event1 = Event.new {
             this.category = categorySoccer
             this.location = locationPlayground
+            creator = user1
             comment = "Dummy Event"
             startDate = Date().time / 1000
             minPeople = 6
@@ -142,6 +143,7 @@ fun createDummyData() {
         }
 
         val event2 = Event.new {
+            creator = user1
             this.category = categoryMovies
             this.location = locationMovieplex
             comment = "Not in group3"
