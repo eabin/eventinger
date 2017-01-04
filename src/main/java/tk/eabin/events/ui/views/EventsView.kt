@@ -3,6 +3,7 @@ package tk.eabin.events.ui.views
 import com.google.common.eventbus.Subscribe
 import com.vaadin.data.Property
 import com.vaadin.data.util.ObjectProperty
+import com.vaadin.event.ShortcutAction
 import com.vaadin.navigator.View
 import com.vaadin.navigator.ViewChangeListener
 import com.vaadin.server.FontAwesome
@@ -26,6 +27,7 @@ import tk.eabin.events.db.schema.Events
 import tk.eabin.events.db.schema.Participations
 import tk.eabin.events.event.*
 import tk.eabin.events.ui.MainUI.Companion.currentUser
+import tools.addKeyboardShortcutListener
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.*
@@ -145,15 +147,16 @@ class EventsView() : VerticalLayout(), View {
 
         ui?.access {
             transaction {
+                logger.addLogger(StdOutSqlLogger())
                 val userGroupIds = currentUser?.groups?.map { it.id } ?: emptyList()
                 // todo: this is an ugly version of filtering and sorting and inserting; make this perform!
                 // out about group relations - or find a mechanism that exposed already provides
-                val rawEvents = (Events innerJoin EventGroupMaps).select {
+                val eventIds = (Events innerJoin EventGroupMaps).slice(Events.id).select {
                     Events.deleted.eq(false).and(Events.archived.eq(false)).and(EventGroupMaps.group.inList(userGroupIds))
-                }.orderBy(Events.startDate, isAsc = true)
-                val events = Event.wrapRows(rawEvents)
+                }.map { it[Events.id] }.distinct()
+                val events = Event.find { Events.id.inList(eventIds) }
                 val eventMap = events.associateBy { it.id.value }
-                for (event in events.toSortedSet(Comparator { a, b -> a.startDate.compareTo(b.startDate) })) {
+                for (event in events) {
                     val eventId = "${event.id.value}"
                     val listeners = eventListeners[event.id.value]
                     if (listeners == null || listeners.isEmpty()) {
@@ -416,12 +419,11 @@ class EventsView() : VerticalLayout(), View {
 
         chatText.addStyleName(ValoTheme.TEXTFIELD_INLINE_ICON)
         chatText.icon = FontAwesome.COMMENT_O
+        chatText.setWidth("100%")
 
-/*        chatText.addShortcutListener(object : ShortcutListener("Submit", null, ShortcutAction.KeyCode.ENTER, ShortcutAction.ModifierKey.CTRL) {
-            override fun handleAction(p0: Any?, p1: Any?) {
-                addComment()
-            }
-        }) */
+        chatText.addKeyboardShortcutListener("submit", ShortcutAction.KeyCode.ENTER) {
+            addComment()
+        }
 
         val btnChat = Button(FontAwesome.PLUS)
         btnChat.setHeight("100%")
