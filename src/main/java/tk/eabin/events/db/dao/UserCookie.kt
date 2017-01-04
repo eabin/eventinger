@@ -17,7 +17,7 @@ class UserCookie(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<UserCookie>(UserCookies) {
         fun generateSessionKey(): String {
             val bytes = ByteArray(64)
-            SecureRandom.getInstanceStrong().nextBytes(bytes)
+            SecureRandom().nextBytes(bytes)
             val sessionKey = Base64.getEncoder().encodeToString(bytes)
             return sessionKey
         }
