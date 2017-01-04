@@ -78,7 +78,7 @@ class EditEventWindow(val event: Event?, caption: String, val saveCallback: (win
         optionGroups.isMultiSelect = true
         val items = BeanItemContainer(UserGroup::class.java)
         transaction {
-            for (g in MainUI.currentUser.groups) {
+            for (g in MainUI.currentUser?.groups ?: emptyList<UserGroup>()) {
                 items.addBean(g)
             }
             optionGroups.containerDataSource = items
@@ -190,7 +190,9 @@ class EditEventWindow(val event: Event?, caption: String, val saveCallback: (win
      */
     fun updateEvent(event: Event) {
         event.apply {
-            creator = MainUI.currentUser
+            MainUI.currentUser?.let {
+                creator = it
+            }
             comment = textInfo.value
             startDate = dateStart.value.time / 1000
             minPeople = textMinPeople.value.toInt()

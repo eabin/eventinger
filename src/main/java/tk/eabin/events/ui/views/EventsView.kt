@@ -145,7 +145,7 @@ class EventsView() : VerticalLayout(), View {
 
         ui?.access {
             transaction {
-                val userGroupIds = currentUser.groups.map { it.id }
+                val userGroupIds = currentUser?.groups?.map { it.id } ?: emptyList()
                 // todo: this is an ugly version of filtering and sorting and inserting; make this perform!
                 // out about group relations - or find a mechanism that exposed already provides
                 val rawEvents = (Events innerJoin EventGroupMaps).select {
@@ -210,7 +210,7 @@ class EventsView() : VerticalLayout(), View {
         transaction {
             println("Setting participation for event ${modifiedEvent.comment} to $i")
             val participation = Participation.find {
-                Participations.userId.eq(currentUser.id).and(
+                Participations.userId.eq(currentUser!!.id).and(
                         Participations.eventId.eq(modifiedEvent.id)
                 )
             }
@@ -350,7 +350,7 @@ class EventsView() : VerticalLayout(), View {
                 EventComment.new {
                     this.comment = chatText.value
                     this.event = event
-                    this.user = currentUser
+                    this.user = currentUser!!
                 }
             }
             chatText.clear()
@@ -496,7 +496,7 @@ class EventsView() : VerticalLayout(), View {
                     addListener(event) {
                         if (it.participations.any {
                             val u = it.user ?: return@any false
-                            u.id == currentUser.id && it.doesParticipate == p.value
+                            u.id == currentUser!!.id && it.doesParticipate == p.value
                         }) {
                             addStyleName(ValoTheme.BUTTON_FRIENDLY)
                         } else {
