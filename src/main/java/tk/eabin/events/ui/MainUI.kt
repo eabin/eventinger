@@ -88,36 +88,38 @@ open class MainUI : UI() {
                             val wannabe = user.first()
                             if (User.cryptPassword(wannabe.id.value, password) == wannabe.password) {
                                 VaadinSession.getCurrent().setAttribute(User::class.java, wannabe)
-                                removeStyleName("loginview")
-                                content = MainView()
-                                navigator.navigateTo(navigator.state)
                                 success = true
                             } else {
                             }
                         }
                         println("Login check: $success")
-                        if (!success) {
-                            notify("Invalid username/password", "The username/password you entered is not correct")
-                        } else if (remember) {
-                            val sessionKey = UserCookie.generateSessionKey()
-                            val cookie = UserCookie.new {
-                                this.user = currentUser!!
-                                this.cookie = sessionKey
-                            }
-                            VaadinSession.getCurrent().setAttribute(UserCookie::class.java, cookie)
-//                            val loginCookie = Cookie(LOGIN_COOKIE, sessionKey)
-//                            VaadinService.getCurrentResponse().addCookie(loginCookie)
+                        if (success) {
+                            if (remember) {
+                                val sessionKey = UserCookie.generateSessionKey()
+                                val cookie = UserCookie.new {
+                                    this.user = currentUser!!
+                                    this.cookie = sessionKey
+                                }
+                                VaadinSession.getCurrent().setAttribute(UserCookie::class.java, cookie)
+                                //                            val loginCookie = Cookie(LOGIN_COOKIE, sessionKey)
+                                //                            VaadinService.getCurrentResponse().addCookie(loginCookie)
 
-                            // this seems like a hack, but apparently with websockets it is not easily possible
-                            // to set cookies anymore?
-                            Page.getCurrent().getJavaScript().execute(String.format("document.cookie = '%s=%s;';", LOGIN_COOKIE, sessionKey));
+                                // this seems like a hack, but apparently with websockets it is not easily possible
+                                // to set cookies anymore?
+                                Page.getCurrent().getJavaScript().execute(String.format("document.cookie = '%s=%s;';", LOGIN_COOKIE, sessionKey));
+                            }
+
+                            // and finally, move to the main view
+                            removeStyleName("loginview")
+                            content = MainView()
+                            navigator.navigateTo(navigator.state)
+                        } else {
+                            notify("Invalid username/password", "The username/password you entered is not correct")
                         }
                     }
                 }
             })
 
-            /*{ username, password ->
-    } )    */
             content = loginForm
             addStyleName("loginview")
         } else {
