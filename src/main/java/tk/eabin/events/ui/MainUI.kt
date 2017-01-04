@@ -32,7 +32,6 @@ import tk.eabin.events.ui.views.MainView
 @Title("EventManager")
 @Push
 open class MainUI : UI() {
-    private var currentUser: User? = null
     private val bus = EventBus()
 
     companion object {
@@ -43,7 +42,7 @@ open class MainUI : UI() {
                 return (getCurrent() as MainUI).bus
             }
 
-        val currentUser: User
+        val currentUser: User?
             get() {
                 return VaadinSession.getCurrent().getAttribute(User::class.java)
             }
@@ -75,7 +74,6 @@ open class MainUI : UI() {
 
         checkUserCookie()
 
-        currentUser = session.getAttribute(User::class.java)
         if (currentUser == null) {
             val loginForm = LoginView()
             loginForm.setLoginListener(object : LoginView.LoginListener {
@@ -89,8 +87,7 @@ open class MainUI : UI() {
                         if (!user.empty()) {
                             val wannabe = user.first()
                             if (User.cryptPassword(wannabe.id.value, password) == wannabe.password) {
-                                currentUser = wannabe
-                                session.setAttribute(User::class.java, currentUser)
+                                VaadinSession.getCurrent().setAttribute(User::class.java, wannabe)
                                 removeStyleName("loginview")
                                 content = MainView()
                                 navigator.navigateTo(navigator.state)
@@ -103,10 +100,11 @@ open class MainUI : UI() {
                             notify("Invalid username/password", "The username/password you entered is not correct")
                         } else if (remember) {
                             val sessionKey = UserCookie.generateSessionKey()
-                            UserCookie.new {
+                            val cookie = UserCookie.new {
                                 this.user = currentUser!!
                                 this.cookie = sessionKey
                             }
+                            VaadinSession.getCurrent().setAttribute(UserCookie::class.java, cookie)
 //                            val loginCookie = Cookie(LOGIN_COOKIE, sessionKey)
 //                            VaadinService.getCurrentResponse().addCookie(loginCookie)
 
@@ -137,8 +135,9 @@ open class MainUI : UI() {
         cookies.firstOrNull { it.name == LOGIN_COOKIE }?.let {
             transaction {
                 UserCookie.find { UserCookies.cookie.eq(it.value) }.firstOrNull()?.let {
-                    session.setAttribute(UserCookie::class.java, it)
-                    session.setAttribute(User::class.java, it.user)
+                    println("Usercookie confirmed.")
+                    VaadinSession.getCurrent().setAttribute(UserCookie::class.java, it)
+                    VaadinSession.getCurrent().setAttribute(User::class.java, it.user)
                 }
             }
         }
@@ -147,13 +146,14 @@ open class MainUI : UI() {
 
     @Subscribe
     fun onLogout(e: UserLoggedOutEvent) {
-        println("Logging out user: ${currentUser?.login}")
-        session.getAttribute(UserCookie::class.java)?.let {
+        println("Logging out user: ${currentUser?.login} with cookie: ${VaadinSession.getCurrent().getAttribute(UserCookie::class.java)}")
+        VaadinSession.getCurrent().getAttribute(UserCookie::class.java)?.let {
             transaction {
+                println("Usercookie deleted")
                 it.delete()
             }
         }
-        session.setAttribute(User::class.java, null)
+        VaadinSession.getCurrent().setAttribute(User::class.java, null)
         VaadinSession.getCurrent().close()
         Page.getCurrent().reload()
     }

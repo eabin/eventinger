@@ -10,7 +10,6 @@ package tk.eabin.events.ui;
 import com.google.common.eventbus.Subscribe;
 import com.vaadin.server.FontAwesome;
 import com.vaadin.server.ThemeResource;
-import com.vaadin.server.VaadinSession;
 import com.vaadin.shared.ui.label.ContentMode;
 import com.vaadin.ui.*;
 import com.vaadin.ui.Button.ClickEvent;
@@ -77,14 +76,10 @@ public final class EventingerMenu extends CustomComponent {
         return logoWrapper;
     }
 
-    private User getCurrentUser() {
-        return VaadinSession.getCurrent().getAttribute(User.class);
-    }
-
     private Component buildUserMenu() {
         final MenuBar settings = new MenuBar();
         settings.addStyleName("user-menu");
-        final User user = getCurrentUser();
+        final User user = MainUI.Companion.getCurrentUser();
         settingsItem = settings.addItem("", new ThemeResource(
                 "img/profile-pic-300px.jpg"), null);
         updateUserName(null);
@@ -179,7 +174,7 @@ public final class EventingerMenu extends CustomComponent {
 
     @Subscribe
     public void updateUserName(final ProfileUpdatedEvent event) {
-        User user = getCurrentUser();
+        User user = MainUI.Companion.getCurrentUser();
         settingsItem.setText(user.getLogin());
     }
 
