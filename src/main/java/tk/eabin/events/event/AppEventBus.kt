@@ -1,6 +1,9 @@
 package tk.eabin.events.event
 
-import com.google.common.eventbus.EventBus
+import com.google.common.eventbus.AsyncEventBus
+import java.util.concurrent.LinkedBlockingDeque
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
 
 /**
  * For subscribing to global events
@@ -15,7 +18,7 @@ data class EventDeletedEvent(val eventId: Int)
 data class EventChangedEvent(val eventId: Int)
 data class CommentCreatedEvent(val eventId: Int)
 
-private val bus = EventBus()
+private val bus = AsyncEventBus("App Event Bus", ThreadPoolExecutor(5, 10, 1, TimeUnit.MINUTES, LinkedBlockingDeque()))
 
 object AppEventBus {
     fun registerWithEventBus(obj: Any) {

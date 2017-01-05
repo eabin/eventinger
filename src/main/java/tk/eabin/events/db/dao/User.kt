@@ -41,6 +41,7 @@ class User(id: EntityID<Int>) : IntEntity(id) {
 
     var login by Users.login
     var password by Users.password
+    var pushId by Users.pushId
     var groups by UserGroup via UserGroupMaps
 
 

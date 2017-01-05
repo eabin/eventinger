@@ -11,6 +11,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.web.servlet.ServletRegistrationBean
 import org.springframework.context.annotation.Bean
 import tk.eabin.events.db.dummy.createDummyData
+import tk.eabin.events.event.notification.Notifier
+import tk.eabin.events.event.notification.PushoverNotifier
 import tk.eabin.events.ui.MyBootstrapListener
 import javax.sql.DataSource
 
@@ -25,9 +27,14 @@ open class EventsApplication {
     @Value("\${db.createDummy}")
     var createDummy = false
 
+    @Value("\${eventinger.pushover.api-token}")
+    var pushoverApiKey = ""
+
 
     @Autowired
     var dataSource: DataSource? = null
+
+    val notifiers = mutableSetOf<Notifier>()
 
     @Bean(name = arrayOf("springBootServletRegistrationBean"))
     open fun servletRegistrationBean(): ServletRegistrationBean {
@@ -36,6 +43,12 @@ open class EventsApplication {
         if (createDummy) {
             createDummyData()
         }
+
+        if (pushoverApiKey.isNotEmpty()) {
+            println("Initializing pushover notifier...")
+            notifiers += PushoverNotifier(pushoverApiKey)
+        }
+
 //        Server.createWebServer("-webPort", "9091").start()
 
         val servlet = object : SpringVaadinServlet() {

@@ -103,6 +103,7 @@ class EventsView() : VerticalLayout(), View {
                             eventWindow.updateEvent(this)
                         }
                         eventWindow.updateEventGroups(newEvent)
+                        AppEventBus.postEvent(EventCreatedEvent(newEvent.id.value))
                         newEvent
                     }
                 } else {
@@ -112,9 +113,9 @@ class EventsView() : VerticalLayout(), View {
                         eventWindow.updateEventGroups(eventWindow.event)
                         eventWindow.event.flush()
                     }
+                    AppEventBus.postEvent(EventChangedEvent(eventWindow.event.id.value))
                     eventWindow.event
                 }
-        AppEventBus.postEvent(EventChangedEvent(event.id.value))
     }
 
     private fun generateToolbar(): Component {
