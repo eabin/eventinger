@@ -145,7 +145,7 @@ open class MainUI : UI() {
      * Check if user can be loaded from cookie
      */
     private fun checkUserCookie() {
-        val cookies = VaadinService.getCurrentRequest().cookies
+        val cookies = VaadinService.getCurrentRequest().cookies ?: return
         cookies.forEach { println("COOKIE: ${it.name} = ${it.value}") }
         cookies.firstOrNull { it.name == LOGIN_COOKIE }?.let {
             transaction {
