@@ -98,6 +98,7 @@ class EventsView() : VerticalLayout(), View {
                             eventWindow.updateEvent(this)
                         }
                         eventWindow.updateEventGroups(newEvent)
+                        this@transaction.flushCache()
                         AppEventBus.postEvent(EventCreatedEvent(newEvent.id.value))
                         newEvent
                     }

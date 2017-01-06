@@ -21,7 +21,7 @@ fun createDummyData() {
             throw IllegalStateException("Expecting empty database")
         }
         SchemaUtils.create(Users, EventLocations, EventCategories, Events, Participations, EventUsers, UserGroups, UserGroupMaps,
-                LocationGroupMaps, EventComments, EventGroupMaps, UserCookies)
+                LocationGroupMaps, EventComments, EventGroupMaps, UserCookies, EventSubscriptions)
 
         val user1 = User.new {
             login = "test"

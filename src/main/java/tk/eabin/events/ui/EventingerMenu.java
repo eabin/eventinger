@@ -21,6 +21,7 @@ import tk.eabin.events.db.dao.User;
 import tk.eabin.events.event.PostViewChangeEvent;
 import tk.eabin.events.event.ProfileUpdatedEvent;
 import tk.eabin.events.event.UserLoggedOutEvent;
+import tk.eabin.events.ui.views.CategorySubscriptionWindow;
 import tk.eabin.events.ui.views.EditProfileWindow;
 
 /**
@@ -88,6 +89,12 @@ public final class EventingerMenu extends CustomComponent {
             @Override
             public void menuSelected(final MenuItem selectedItem) {
                 EditProfileWindow.Companion.open(user);
+            }
+        });
+        settingsItem.addItem("Edit Subscriptions", new Command() {
+            @Override
+            public void menuSelected(final MenuItem selectedItem) {
+                if (user != null) CategorySubscriptionWindow.Companion.open(user);
             }
         });
         settingsItem.addSeparator();

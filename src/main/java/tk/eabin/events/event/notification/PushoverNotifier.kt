@@ -8,15 +8,13 @@ import org.apache.http.impl.client.HttpClients
 import org.apache.http.message.BasicNameValuePair
 import org.jetbrains.exposed.dao.EntityID
 import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.springframework.http.HttpStatus
 import tk.eabin.events.db.dao.Event
 import tk.eabin.events.db.dao.EventComment
-import tk.eabin.events.db.schema.EventUsers
-import tk.eabin.events.db.schema.Events
-import tk.eabin.events.db.schema.UserGroupMaps
-import tk.eabin.events.db.schema.Users
+import tk.eabin.events.db.schema.*
 import tk.eabin.events.event.AppEventBus
 import tk.eabin.events.event.CommentCreatedEvent
 import tk.eabin.events.event.EventChangedEvent
@@ -83,9 +81,11 @@ class PushoverNotifier(val apiKey: String) : Notifier {
             // find everybody in the event's group and notify them
             val event = Event[e.eventId] ?: return@transaction
             val groupIds = Event[e.eventId].groups.map { it.id }
-            val users = (Users innerJoin UserGroupMaps).select {
+            val users = (Users innerJoin UserGroupMaps leftJoin EventSubscriptions).select {
                 UserGroupMaps.group.inList(groupIds)
                         .and(Users.pushId.isNotNull())
+                        .and(EventSubscriptions.categoryId.eq(event.category.id).or(EventSubscriptions.categoryId.isNull()))
+                        .and(EventSubscriptions.byJabber.isNull().or(EventSubscriptions.byJabber.eq(true)))
             }.distinctBy { it[Users.id] }
             for (user in users) {
                 val pushId = user[Users.pushId] ?: continue
