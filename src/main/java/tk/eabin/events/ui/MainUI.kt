@@ -129,7 +129,12 @@ open class MainUI : UI() {
     private fun onLoggedIn() {
         // update last login time
         currentUser?.let {
-            it.lastSeen = Date().time / 1000
+            transaction {
+                val now = Date().time / 1000
+                println("Updating time ${it.lastSeen} -> $now")
+                it.lastSeen = now
+                it.flush()
+            }
         }
 
         content = MainView()
