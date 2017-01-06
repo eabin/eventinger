@@ -43,6 +43,7 @@ class User(id: EntityID<Int>) : IntEntity(id) {
     var password by Users.password
     var pushId by Users.pushId
     var groups by UserGroup via UserGroupMaps
+    var lastSeen by Users.lastSeen
 
 
 }

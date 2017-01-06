@@ -12,4 +12,5 @@ object Users : IntIdTable("systemuser") {
     val login = varchar("login", 255)
     val password = varchar("password", 255).nullable()
     val pushId = varchar("jabber_id", 255).nullable()
+    val lastSeen = long("last_seen").default(0)
 }

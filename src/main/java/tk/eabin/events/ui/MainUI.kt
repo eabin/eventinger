@@ -19,6 +19,7 @@ import tk.eabin.events.db.schema.Users
 import tk.eabin.events.event.UserLoggedOutEvent
 import tk.eabin.events.ui.views.LoginView
 import tk.eabin.events.ui.views.MainView
+import java.util.*
 
 
 /**
@@ -107,6 +108,10 @@ open class MainUI : UI() {
                                 // this seems like a hack, but apparently with websockets it is not easily possible
                                 // to set cookies anymore?
                                 Page.getCurrent().getJavaScript().execute(String.format("document.cookie = '%s=%s;';", LOGIN_COOKIE, sessionKey));
+                            }
+                            // update last login time
+                            currentUser?.let {
+                                it.lastSeen = Date().time / 1000
                             }
 
                             // and finally, move to the main view
