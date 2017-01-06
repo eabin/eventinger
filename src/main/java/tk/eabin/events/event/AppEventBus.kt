@@ -13,6 +13,8 @@ import java.util.concurrent.TimeUnit
  */
 data class ParticipationChangedEvent(val eventId: Int)
 
+data class EventUserChangedEvent(val eventId: Int)
+
 data class EventCreatedEvent(val eventId: Int)
 data class EventDeletedEvent(val eventId: Int)
 data class EventChangedEvent(val eventId: Int)

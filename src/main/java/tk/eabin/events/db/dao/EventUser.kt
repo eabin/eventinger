@@ -14,8 +14,8 @@ import tk.eabin.events.db.schema.EventUsers
 class EventUser(id: EntityID<Int>) : IntEntity(id) {
     companion object : IntEntityClass<EventUser>(EventUsers)
 
-    val event by Event referencedOn EventUsers.event
-    val user by User referencedOn EventUsers.user
+    var event by Event referencedOn EventUsers.event
+    var user by User referencedOn EventUsers.user
     var subscribed by EventUsers.subscribed
     var seen by EventUsers.seen
 }

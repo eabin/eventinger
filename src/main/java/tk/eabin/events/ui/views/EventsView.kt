@@ -17,14 +17,8 @@ import org.jetbrains.exposed.sql.StdOutSqlLogger
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
-import tk.eabin.events.db.dao.Event
-import tk.eabin.events.db.dao.EventComment
-import tk.eabin.events.db.dao.Participation
-import tk.eabin.events.db.dao.ParticipationType
-import tk.eabin.events.db.schema.EventComments
-import tk.eabin.events.db.schema.EventGroupMaps
-import tk.eabin.events.db.schema.Events
-import tk.eabin.events.db.schema.Participations
+import tk.eabin.events.db.dao.*
+import tk.eabin.events.db.schema.*
 import tk.eabin.events.event.*
 import tk.eabin.events.ui.MainUI.Companion.currentUser
 import tools.addKeyboardShortcutListener
@@ -48,7 +42,8 @@ class EventsView() : VerticalLayout(), View {
 
     data class ToolbarListener(
             val onEdit: (() -> Unit)? = null,
-            val onDelete: (() -> Unit)? = null
+            val onDelete: (() -> Unit)? = null,
+            val onSubscribed: (() -> Unit)? = null
     )
 
     val eventList by lazy {
@@ -230,7 +225,29 @@ class EventsView() : VerticalLayout(), View {
         AppEventBus.postEvent(ParticipationChangedEvent(modifiedEvent.id.value))
     }
 
+    private fun updateEventUser(modifiedEvent: Event, doChange: (eu: EventUser) -> Unit) {
+        transaction {
+            println("Updating user details for event: ${modifiedEvent.id}")
+            val eventUsers = EventUser.find {
+                EventUsers.user.eq(currentUser!!.id).and(
+                        EventUsers.event.eq(modifiedEvent.id)
+                )
+            }
+            val eventUser = if (eventUsers.empty()) {
+                EventUser.new {
+                    event = modifiedEvent
+                    user = currentUser!!
+                }
+            } else {
+                eventUsers.first()
+            }
+            doChange(eventUser)
+        }
+        AppEventBus.postEvent(EventUserChangedEvent(modifiedEvent.id.value))
+    }
+
     private fun createContentWrapper(content: Component, captionProperty: Property<String>,
+                                     isStarred: Boolean,
                                      listener: ToolbarListener): Component {
         val slot = CssLayout()
         slot.setWidth("100%")
@@ -251,6 +268,14 @@ class EventsView() : VerticalLayout(), View {
 
         val tools = MenuBar()
         tools.addStyleName(ValoTheme.MENUBAR_BORDERLESS)
+
+        var isCurrentlyStarred = isStarred
+        val star = tools.addItem("", if (isStarred) FontAwesome.STAR else FontAwesome.STAR_O, MenuBar.Command {
+            isCurrentlyStarred = !isCurrentlyStarred
+            it.icon = if (isCurrentlyStarred) FontAwesome.STAR else FontAwesome.STAR_O
+            listener.onSubscribed?.invoke()
+        })
+        star.styleName = "icon-only"
 
         val edit = tools.addItem("", FontAwesome.EDIT, MenuBar.Command {
             listener.onEdit?.invoke()
@@ -305,10 +330,17 @@ class EventsView() : VerticalLayout(), View {
         val buttons = buildButtonBox(event)
         content.addComponent(buttons)
 
-        return createContentWrapper(content, captionProperty,
+        val isSubscribed = event.isSubscribed(currentUser!!)
+        return createContentWrapper(content, captionProperty, isSubscribed,
                 ToolbarListener(
                         onEdit = { ui.addWindow(EditEventWindow(event, "Edit Event", { saveEvent(it) })) },
-                        onDelete = { showConfirmDialog(ui, "Delete Event", "You are about to delete the following event: (TODO)", "Delete", { deleteEvent(event.id.value) }) }
+                        onDelete = { showConfirmDialog(ui, "Delete Event", "You are about to delete the following event: (TODO)", "Delete", { deleteEvent(event.id.value) }) },
+                        onSubscribed = {
+                            updateEventUser(event) {
+                                it.subscribed = if (isSubscribed) 0 else 1
+                            }
+                        }
+
                 )
         )
     }
@@ -552,6 +584,9 @@ class EventsView() : VerticalLayout(), View {
 
     @Subscribe
     fun onParticipationChanged(e: ParticipationChangedEvent) = updateEvents(e.eventId)
+
+    @Subscribe
+    fun onEventUserChanged(e: EventUserChangedEvent) = updateEvents(e.eventId)
 
     @Subscribe
     fun onEventChanged(e: EventChangedEvent) = updateEvents(e.eventId)

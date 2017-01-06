@@ -3,6 +3,8 @@ package tk.eabin.events.db.dao
 import org.jetbrains.exposed.dao.EntityID
 import org.jetbrains.exposed.dao.IntEntity
 import org.jetbrains.exposed.dao.IntEntityClass
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.transactions.transaction
 import tk.eabin.events.db.schema.EventGroupMaps
 import tk.eabin.events.db.schema.EventUsers
 import tk.eabin.events.db.schema.Events
@@ -29,4 +31,11 @@ class Event(id: EntityID<Int>) : IntEntity(id) {
     val eventUsers by EventUser referrersOn EventUsers.event
     val participations by Participation referrersOn Participations.eventId
     val groups by UserGroup via EventGroupMaps
+
+    fun isSubscribed(user: User): Boolean {
+        return transaction {
+            val u = EventUser.find { EventUsers.event.eq(id).and(EventUsers.user.eq(user.id)) }
+            return@transaction if (u.empty()) false else u.first().subscribed > 0
+        }
+    }
 }

@@ -11,6 +11,6 @@ import org.jetbrains.exposed.dao.IntIdTable
 object EventUsers : IntIdTable("event_user") {
     val user = reference("user_id", Users)
     val event = reference("event_id", Events)
-    val subscribed = integer("is_subscribed")
-    val seen = bool("seen")
+    val subscribed = integer("is_subscribed").default(0)
+    val seen = bool("seen").default(false)
 }
