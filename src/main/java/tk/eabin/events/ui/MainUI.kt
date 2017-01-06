@@ -109,15 +109,9 @@ open class MainUI : UI() {
                                 // to set cookies anymore?
                                 Page.getCurrent().getJavaScript().execute(String.format("document.cookie = '%s=%s;';", LOGIN_COOKIE, sessionKey));
                             }
-                            // update last login time
-                            currentUser?.let {
-                                it.lastSeen = Date().time / 1000
-                            }
-
-                            // and finally, move to the main view
                             removeStyleName("loginview")
-                            content = MainView()
-                            navigator.navigateTo(navigator.state)
+
+                            onLoggedIn()
                         } else {
                             notify("Invalid username/password", "The username/password you entered is not correct")
                         }
@@ -128,9 +122,18 @@ open class MainUI : UI() {
             content = loginForm
             addStyleName("loginview")
         } else {
-            content = MainView()
-            navigator.navigateTo(navigator.state)
+            onLoggedIn()
         }
+    }
+
+    private fun onLoggedIn() {
+        // update last login time
+        currentUser?.let {
+            it.lastSeen = Date().time / 1000
+        }
+
+        content = MainView()
+        navigator.navigateTo(navigator.state)
     }
 
     /**
