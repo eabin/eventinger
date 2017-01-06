@@ -381,7 +381,7 @@ class EventsView() : VerticalLayout(), View {
 
         fun addComment() {
             if (chatText.isEmpty) return
-            transaction {
+            val comment = transaction {
                 EventComment.new {
                     this.comment = chatText.value
                     this.event = event
@@ -390,7 +390,7 @@ class EventsView() : VerticalLayout(), View {
             }
             chatText.clear()
             updateChatEntries()
-            AppEventBus.postEvent(CommentCreatedEvent(event.id.value))
+            AppEventBus.postEvent(CommentCreatedEvent(event.id.value, comment.id.value))
             chatText.focus()
         }
 

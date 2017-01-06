@@ -12,11 +12,13 @@ import org.jetbrains.exposed.sql.select
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.springframework.http.HttpStatus
 import tk.eabin.events.db.dao.Event
+import tk.eabin.events.db.dao.EventComment
 import tk.eabin.events.db.schema.EventUsers
 import tk.eabin.events.db.schema.Events
 import tk.eabin.events.db.schema.UserGroupMaps
 import tk.eabin.events.db.schema.Users
 import tk.eabin.events.event.AppEventBus
+import tk.eabin.events.event.CommentCreatedEvent
 import tk.eabin.events.event.EventChangedEvent
 import tk.eabin.events.event.EventCreatedEvent
 import java.text.DateFormat
@@ -43,7 +45,9 @@ class PushoverNotifier(val apiKey: String) : Notifier {
         AppEventBus.registerWithEventBus(this)
     }
 
-    private fun sendMessage(user: String, message: String, payload: Map<String, String> = emptyMap()): Boolean {
+    private fun sendMessage(user: String,
+                            message: String,
+                            payload: Map<String, String> = emptyMap()): Boolean {
         val client = HttpClients.createDefault()
         val post = HttpPost("https://api.pushover.net/1/messages.json")
 
@@ -96,7 +100,7 @@ class PushoverNotifier(val apiKey: String) : Notifier {
 
     @Subscribe
     fun onEventChanged(e: EventChangedEvent) {
-        println("Pushing event created to clients...")
+        println("Pushing event changed to clients...")
         transaction {
             // find everybody in the event's group and notify them
             val event = Event[e.eventId] ?: return@transaction
@@ -108,6 +112,27 @@ class PushoverNotifier(val apiKey: String) : Notifier {
                 if (pushId.isEmpty()) continue
                 println("Pushing change to user: " + user[Users.login])
                 if (!sendMessage(pushId, "Event update: ${event.category.name} @${event.location.name} - ${captionDateFormat.format(Date(event.startDate * 1000))}")) {
+                    println("Pushover failed.")
+                }
+            }
+        }
+    }
+
+    @Subscribe
+    fun onComment(e: CommentCreatedEvent) {
+        println("Pushing new comment to clients...")
+        transaction {
+            // find everybody in the event's group and notify them
+            val event = Event[e.eventId] ?: return@transaction
+            val comment = EventComment[e.commentId] ?: return@transaction
+            val users = (Users innerJoin EventUsers).select {
+                EventUsers.event.eq(EntityID(e.eventId, Events)).and(EventUsers.subscribed.greater(0))
+            }.distinctBy { it[Users.id] }
+            for (user in users) {
+                val pushId = user[Users.pushId] ?: continue
+                if (pushId.isEmpty()) continue
+                println("Pushing change to user: " + user[Users.login])
+                if (!sendMessage(pushId, "New comment: ${event.category.name} @${event.location.name} - ${captionDateFormat.format(Date(event.startDate * 1000))}\n[${comment.user.login}] ${comment.comment}")) {
                     println("Pushover failed.")
                 }
             }

@@ -18,7 +18,7 @@ data class EventUserChangedEvent(val eventId: Int)
 data class EventCreatedEvent(val eventId: Int)
 data class EventDeletedEvent(val eventId: Int)
 data class EventChangedEvent(val eventId: Int)
-data class CommentCreatedEvent(val eventId: Int)
+data class CommentCreatedEvent(val eventId: Int, val commentId: Int)
 
 private val bus = AsyncEventBus("App Event Bus", ThreadPoolExecutor(5, 10, 1, TimeUnit.MINUTES, LinkedBlockingDeque()))
 

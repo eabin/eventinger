@@ -21,6 +21,7 @@ import tk.eabin.events.db.dao.User;
 import tk.eabin.events.event.PostViewChangeEvent;
 import tk.eabin.events.event.ProfileUpdatedEvent;
 import tk.eabin.events.event.UserLoggedOutEvent;
+import tk.eabin.events.ui.views.EditProfileWindow;
 
 /**
  * A responsive menu component providing user information and the controls for
@@ -86,13 +87,7 @@ public final class EventingerMenu extends CustomComponent {
         settingsItem.addItem("Edit Profile", new Command() {
             @Override
             public void menuSelected(final MenuItem selectedItem) {
-//                ProfilePreferencesWindow.open(user, false);
-            }
-        });
-        settingsItem.addItem("Preferences", new Command() {
-            @Override
-            public void menuSelected(final MenuItem selectedItem) {
-//                ProfilePreferencesWindow.open(user, true);
+                EditProfileWindow.Companion.open(user);
             }
         });
         settingsItem.addSeparator();
