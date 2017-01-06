@@ -2,6 +2,7 @@ package tk.eabin.events.ui.views
 
 import com.vaadin.data.util.BeanItemContainer
 import com.vaadin.event.ShortcutAction
+import com.vaadin.server.FontAwesome
 import com.vaadin.server.Sizeable
 import com.vaadin.shared.ui.datefield.Resolution
 import com.vaadin.ui.*
@@ -57,9 +58,10 @@ class EditEventWindow(val event: Event?, caption: String, val saveCallback: (win
         result.setMargin(true)
         result.isSpacing = true
 
-        buildCategoryLocationSelector()
+        val locationSelector = buildCategoryLocationSelector()
         result.addComponent(comboCategory)
-        result.addComponent(comboLocation)
+        result.addComponent(locationSelector)
+        textInfo.setWidth("100%")
         result.addComponent(textInfo)
         configureStartDate()
         result.addComponent(dateStart)
@@ -103,15 +105,16 @@ class EditEventWindow(val event: Event?, caption: String, val saveCallback: (win
         dateStart.resolution = Resolution.MINUTE
     }
 
-    private fun buildCategoryLocationSelector() {
-        transaction {
+    private fun buildCategoryLocationSelector(): Component {
+        return transaction {
             val categories = EventCategory.all()
             val container = BeanItemContainer(EventCategory::class.java)
             for (category in categories) {
                 container.addBean(category)
             }
-            comboCategory.containerDataSource = container
 
+            comboCategory.setWidth("100%")
+            comboCategory.containerDataSource = container
             comboCategory.itemCaptionMode = AbstractSelect.ItemCaptionMode.PROPERTY
             comboCategory.itemCaptionPropertyId = "name"
             comboCategory.select(event?.category)
@@ -126,18 +129,52 @@ class EditEventWindow(val event: Event?, caption: String, val saveCallback: (win
             comboLocation.itemCaptionMode = AbstractSelect.ItemCaptionMode.PROPERTY
             comboLocation.itemCaptionPropertyId = "name"
             comboLocation.select(event?.location)
+
+            val btnCreateLocation = Button(FontAwesome.PLUS).apply {
+                addClickListener {
+                    val category = comboCategory.value as EventCategory? ?: return@addClickListener
+                    EditLocationWindow.open(category, null) {
+                        val location = if (it.location != null) {
+                            println("Saving location")
+                            transaction {
+                                it.updateLocation(it.location)
+                            }
+                            it.location
+                        } else {
+                            transaction {
+                                EventLocation.new {
+                                    this.category = category
+                                    it.updateLocation(this)
+                                }
+                            }
+                        }
+                        populateLocations(category, location)
+                    }
+                }
+            }
+
+            val locationSelector = HorizontalLayout(comboLocation, btnCreateLocation)
+            locationSelector.setExpandRatio(comboLocation, 1f)
+            locationSelector.setComponentAlignment(btnCreateLocation, Alignment.BOTTOM_CENTER)
+            locationSelector
         }
     }
 
-    private fun populateLocations(category: EventCategory) {
+    private fun populateLocations(category: EventCategory, preselect: EventLocation? = null) {
         val dataSource = BeanItemContainer(EventLocation::class.java)
+        var actualPreselect: EventLocation? = null
         transaction {
             val locations = EventLocation.find { EventLocations.categoryId.eq(category.id) }
             for (location in locations) {
                 dataSource.addBean(location)
+                println("Adding location: ${location.id} -> ${location.name}")
+                // TODO: for some reason, a just created Entity is not equal to the re-read one from the db;
+                // just compare ids as a workaround for now
+                if (location.id == preselect?.id) actualPreselect = location
             }
         }
         comboLocation.containerDataSource = dataSource
+        comboLocation.select(actualPreselect)
     }
 
     private fun buildFooter(): Component {
