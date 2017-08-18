@@ -104,7 +104,7 @@ class EventsView() : VerticalLayout(), View {
                     }
                 } else {
                     transaction {
-                        logger.addLogger(StdOutSqlLogger())
+                        logger.addLogger(StdOutSqlLogger)
                         eventWindow.updateEvent(eventWindow.event)
                         eventWindow.updateEventGroups(eventWindow.event)
                         eventWindow.event.flush()
